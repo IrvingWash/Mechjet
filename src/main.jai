@@ -13,5 +13,8 @@ main :: () {
     Engine.init("Mechjet", 800, 600);
     defer Engine.deinit();
 
+    while !Engine.should_quit() {
+        Engine.begin_frame();
+    }
     reset_temporary_storage();
 }

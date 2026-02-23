@@ -1,3 +1,6 @@
 [submodule "modules/Jai_WGPU"]
 	path = modules/Jai_WGPU
 	url = git@github.com:IrvingWash/Jai_WGPU.git
+[submodule "modules/GLFW/modules/glfw"]
+	path = modules/GLFW/modules/glfw
+	url = git@github.com:glfw/glfw.git
