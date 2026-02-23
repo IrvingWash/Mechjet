@@ -10,7 +10,7 @@ init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
 
     engine.input_state = Input.init_input(engine.window);
 
-    ok, engine.renderer = Renderer.init_renderer();
+    ok, engine.renderer = Renderer.init_renderer(engine.window);
     if !ok {
         return false;
     }

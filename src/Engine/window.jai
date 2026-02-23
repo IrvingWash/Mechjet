@@ -15,6 +15,13 @@ Cursor_Mode :: enum {
     DISABLED;
 }
 
+Platform_Specific_Window_Info :: union {
+    x11: struct {
+        window:  GLFW.X11_Window;
+        display: GLFW.X11_Display;
+    }
+}
+
 create_window :: ($$title: string, width: u32, height: u32) -> ok: bool, Window_Handle {
     window_data := New(Window_Data);
 
@@ -347,6 +354,22 @@ set_cursor_mode :: (handle: Window_Handle, mode: Cursor_Mode) {
         case Cursor_Mode.DISABLED;
             GLFW.set_input_mode(window_data.window, GLFW.Input_Mode.CURSOR, GLFW.Input_Mode_Value.CURSOR_DISABLED);
     }
+}
+
+get_platform_specific_info :: (handle: Window_Handle) -> Platform_Specific_Window_Info {
+    window_data := cast(*Window_Data, handle);
+
+    info: Platform_Specific_Window_Info;
+
+    #if OS == {
+        case .LINUX;
+            info.x11.window = GLFW.get_x11_window(window_data.window);
+            info.x11.display = GLFW.get_x11_display();
+        case;
+            assert(false, "Unsupported OS '%'", OS);
+    }
+
+    return info;
 }
 
 

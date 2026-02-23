@@ -1,7 +1,10 @@
 DONT_CARE: s32 : -1;
 
-#if OS == .WINDOWS {
-    #load "windows.jai";
+#if OS == {
+    case .LINUX;
+        #load "linux.jai";
+    case .WINDOWS;
+        #load "windows.jai";
 }
 
 Error_Proc            :: #type (code: s32, description: *u8) #c_call;
