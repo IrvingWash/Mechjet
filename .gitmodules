@@ -1,0 +1,3 @@
+[submodule "modules/Jai_WGPU"]
+	path = modules/Jai_WGPU
+	url = git@github.com:IrvingWash/Jai_WGPU.git

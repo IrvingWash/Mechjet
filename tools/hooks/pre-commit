@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# ==============================================================================
+# no_commit
+# ==============================================================================
+BLOCK_MARKER="no_commit"
+
+echo "Checking for no_commit..."
+if git diff --cached --diff-filter=ACM | grep -F @"$BLOCK_MARKER"; then
+    echo "❌ Commit blocked: Found @$BLOCK_MARKER in staged changes."
+    exit 1
+fi

@@ -1,0 +1,10 @@
+{
+    "roots": [
+        "src/main.jai",
+        "build.jai",
+        "install_tools.jai"
+    ],
+    "build_root": "build.jai",
+    "local_modules": ["modules"],
+    "auto_insert_parentheses": false
+}
