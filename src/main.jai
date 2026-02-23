@@ -10,7 +10,8 @@ Engine :: #import,dir "Engine"()(DEBUG = DEBUG);
 main :: () {
     defer report_memory_leaks();
 
-    Engine.init("Mechjet", 800, 600);
+    ok := Engine.init("Mechjet", 800, 600);
+    assert(ok);
     defer Engine.deinit();
 
     while !Engine.should_quit() {

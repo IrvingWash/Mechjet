@@ -1,5 +1,3 @@
-#scope_module
-
 Input_State_Handle :: #type *void;
 
 init_input :: (window: Window.Window_Handle) -> Input_State_Handle {

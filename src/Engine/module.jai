@@ -10,10 +10,17 @@ init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
 
     engine.input_state = Input.init_input(engine.window);
 
+    ok, engine.renderer = Renderer.init_renderer();
+    if !ok {
+        return false;
+    }
+
     return true;
 }
 
 deinit :: () {
+    Renderer.deinit_renderer(engine.renderer);
+
     Input.deinit_input(engine.input_state);
 
     Window.destroy_window(engine.window);
@@ -33,11 +40,13 @@ should_quit :: inline () -> bool {
 
 Engine :: struct {
     window: Window.Window_Handle;
-    input_state: *Input.Input_State_Handle;
+    input_state: Input.Input_State_Handle;
+    renderer: Renderer.Renderer_Handle;
 }
 
 engine: Engine;
 
 #import "Basic";
-Input  :: #import,file "input.jai";
-Window :: #import,file "window.jai";
+Input    :: #import,file "input.jai";
+Window   :: #import,file "window.jai";
+Renderer :: #import,dir "renderer";

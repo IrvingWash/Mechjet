@@ -1,5 +1,3 @@
-#scope_module
-
 Window_Handle :: #type *void;
 
 Key :: GLFW.Key;
