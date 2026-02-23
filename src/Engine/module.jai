@@ -1,5 +1,7 @@
 #module_parameters()(DEBUG := false);
 
+#load "math.jai";
+
 init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
     ok:, engine.window = Window.create_window(title, window_width, window_height);
     if !ok {
