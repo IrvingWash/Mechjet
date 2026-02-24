@@ -68,16 +68,16 @@ do_backbuffer_pass :: (
     clear_color: Vector4,
 ) {
     render_pass_color_attachment: WGPU.RenderPassColorAttachment = {
-        view    = texture_view,
-        loadOp  = .Clear,
-        storeOp = .Store,
+        view       = texture_view,
+        loadOp     = .Clear,
+        storeOp    = .Store,
         clearValue = WGPU.Color.{ clear_color.x, clear_color.y, clear_color.z, clear_color.w },
         depthSlice = WGPU.DEPTH_SLICE_UNDEFINED,
     };
 
     render_pass_descriptor: WGPU.RenderPassDescriptor = {
         colorAttachmentCount = 1,
-        colorAttachments = *render_pass_color_attachment,
+        colorAttachments     = *render_pass_color_attachment,
     };
 
     render_pass_encoder := WGPU.CommandEncoderBeginRenderPass(command_encoder, *render_pass_descriptor);
