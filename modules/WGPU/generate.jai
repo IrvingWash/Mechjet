@@ -2,18 +2,16 @@ ABSOLUTE_WGPU_NATIVE_PATH :: #run make_absolute_path("wgpu-native");
 
 #if OS == {
     case .LINUX;
-        BUILD_DIR           :: "linux";
-        STATIC_LIB_NAME     :: "libwgpu_native.a";
+        STATIC_LIB_NAME :: "libwgpu_native.a";
     case .MACOS;
-        BUILD_DIR           :: "macos";
-        STATIC_LIB_NAME     :: "libwgpu_native.a";
+        STATIC_LIB_NAME :: "libwgpu_native.a";
     case .WINDOWS;
-        BUILD_DIR           :: "windows";
-        STATIC_LIB_NAME     :: "wgpu_native.lib";
+        STATIC_LIB_NAME :: "wgpu_native.lib";
     case;
         #assert false;
 }
 
+BUILD_DIR :: #run tprint("%", OS);
 ABSOLUTE_BUILD_PATH :: #run make_absolute_path(BUILD_DIR);
 
 #run,stallable {
@@ -84,12 +82,6 @@ generate :: () -> ok: bool {
 }
 
 build :: () -> ok: bool {
-    absolute_wgpu_native_artifact_dir := path_join(
-        ABSOLUTE_WGPU_NATIVE_PATH,
-        "target",
-        "release",
-    );
-
     ok := make_directory_if_it_does_not_exist(ABSOLUTE_BUILD_PATH, true);
     assert(
         ok,
@@ -116,7 +108,9 @@ build :: () -> ok: bool {
 
     copy_file(
         path_join(
-            absolute_wgpu_native_artifact_dir,
+            ABSOLUTE_WGPU_NATIVE_PATH,
+            "target",
+            "release",
             STATIC_LIB_NAME,
         ),
         path_join(

@@ -1,7 +1,7 @@
 //
 // This file was auto-generated using the following command:
 //
-// jai ./modules/WGPU/generate.jai
+// jai modules/WGPU/generate.jai
 //
 
 
@@ -4562,7 +4562,7 @@ RenderPassEncoderWriteTimestamp :: (renderPassEncoder: RenderPassEncoder, queryS
 
 #import "Basic"; // For assert
 
-libwgpu_native :: #library,no_dll "linux/libwgpu_native";
+libwgpu_native :: #library,no_dll "LINUX/libwgpu_native";
 
 #run {
     {
