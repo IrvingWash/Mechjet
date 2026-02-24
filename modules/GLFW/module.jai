@@ -394,15 +394,15 @@ glfwGetWindowPos :: (window: *Window, x: *s32, y: *s32) #foreign GLFW;
 
 #if OS == {
     case .MACOS;
-        GLFW :: #library,no_dll "macos/libglfw3";
+        GLFW :: #library,no_dll "MACOS/libglfw3";
         #library,system,link_always "IOKit";
     case .WINDOWS;
-        GLFW :: #library,no_dll "windows/Release/glfw3";
+        GLFW :: #library,no_dll "WINDOWS/Release/glfw3";
         #library,system,link_always "user32";
         #library,system,link_always "gdi32";
         #library,system,link_always "shell32";
     case .LINUX;
-        GLFW :: #library,no_dll "linux/libglfw3";
+        GLFW :: #library,no_dll "LINUX/libglfw3";
         #library,system,link_always "libm";
 }
 

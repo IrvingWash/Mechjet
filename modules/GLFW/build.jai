@@ -2,23 +2,15 @@
 #import "Compiler";
 #import "Process";
 #import "File";
+#import "String";
 
-ABSOLUTE_SOURCE_PATH :: #run -> string {
-    return get_absolute_path("glfw");
-}
+ABSOLUTE_SOURCE_PATH :: #run path_join(#filepath, "glfw");
 
-CMAKE_GENERATION_DIR :: ".cmake";
+ABSOLUTE_CMAKE_GENERATION_PATH :: #run path_join(#filepath, ".cmake");
 
-#if OS == {
-    case .MACOS;
-        PLATFORM_NAME :: "macos";
-    case .LINUX;
-        PLATFORM_NAME :: "linux";
-    case .WINDOWS;
-        PLATFORM_NAME :: "windows";
-}
+ABSOLUTE_OUTUPT_PATH :: #run path_join(#filepath, tprint("%", OS));
 
-#run {
+#run,stallable {
     set_build_options_dc({
         do_output           = false,
         write_added_strings = false,
@@ -36,16 +28,13 @@ build_glfw :: () {
     config_command: [..]string;
     config_command.allocator = temp;
 
-    ok := make_directory_if_it_does_not_exist(PLATFORM_NAME);
+    ok := make_directory_if_it_does_not_exist(ABSOLUTE_OUTUPT_PATH);
     if !ok {
-        log_error("Failed to create binary directory");
+        log_error("Failed to create output directory");
         return;
     }
 
-    absolute_binary_path := get_absolute_path(PLATFORM_NAME);
-    cmake_generation_absolute_path := tprint("%%", #filepath, CMAKE_GENERATION_DIR);
-
-    ok = make_directory_if_it_does_not_exist(cmake_generation_absolute_path);
+    ok = make_directory_if_it_does_not_exist(ABSOLUTE_CMAKE_GENERATION_PATH);
     if !ok {
         log_error("Failed to create directory for cmake generated files");
         return;
@@ -55,8 +44,8 @@ build_glfw :: () {
         *config_command,
         "cmake",
         ABSOLUTE_SOURCE_PATH,
-        tprint("-B %", cmake_generation_absolute_path),
-        tprint("-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=%", absolute_binary_path),
+        tprint("-B %", ABSOLUTE_CMAKE_GENERATION_PATH),
+        tprint("-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=%", ABSOLUTE_OUTUPT_PATH),
         "-DBUILD_SHARED_LIBS=OFF",
         "-DGLFW_LIBRARY_TYPE=STATIC",
         "-DGLFW_BUILD_EXAMPLES=OFF",
@@ -92,7 +81,7 @@ build_glfw :: () {
         *build_command,
         "cmake",
         "--build",
-        cmake_generation_absolute_path,
+        ABSOLUTE_CMAKE_GENERATION_PATH,
         "--config",
         "Release",
     );
