@@ -34,6 +34,16 @@ should_quit :: inline () -> bool {
     return Window.should_window_close(engine.window);
 }
 
+// @Todo bad api
+start_drawing :: inline () {
+    Renderer.start_drawing(engine.renderer);
+}
+
+// @Todo bad api
+end_drawing :: inline () {
+    Renderer.end_drawing(engine.renderer);
+}
+
 deg_to_rad :: (degrees: float) -> float {
     return degrees * PI_BY_HALF_CIRCLE;
 }

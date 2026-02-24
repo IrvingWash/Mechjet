@@ -54,6 +54,8 @@ init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
 }
 
 deinit_wgpu :: (toolbox: WGPU_Toolbox) {
+    WGPU.SurfaceCapabilitiesFreeMembers(toolbox.surface_capabilities);
+
     WGPU.QueueRelease(toolbox.queue);
 
     WGPU.SurfaceUnconfigure(toolbox.surface);
@@ -61,6 +63,26 @@ deinit_wgpu :: (toolbox: WGPU_Toolbox) {
     WGPU.DeviceRelease(toolbox.device);
 
     WGPU.SurfaceRelease(toolbox.surface);
+}
+
+get_wgpu_surface_texture_view :: (surface: WGPU.Surface) -> ok: bool, WGPU.TextureView, WGPU.Texture {
+    surface_texture: WGPU.SurfaceTexture;
+    WGPU.SurfaceGetCurrentTexture(surface, *surface_texture);
+
+    if surface_texture.status > .SuccessSuboptimal {
+        return false, null, null;
+    }
+
+    descriptor: WGPU.TextureViewDescriptor = {
+        format          = WGPU.TextureGetFormat(surface_texture.texture),
+        dimension       = ._2D,
+        mipLevelCount   = 1,
+        arrayLayerCount = 1,
+        aspect          = .All,
+        usage           = WGPU.WGPUTextureUsage_RenderAttachment,
+    };
+
+    return true, WGPU.TextureCreateView(surface_texture.texture, *descriptor), surface_texture.texture;
 }
 
 

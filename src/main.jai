@@ -16,6 +16,9 @@ main :: () {
 
     while !Engine.should_quit() {
         Engine.begin_frame();
+
+        Engine.start_drawing();
+        Engine.end_drawing();
     }
     reset_temporary_storage();
 }
