@@ -170,5 +170,5 @@ wgpu_log_handler :: (
 }
 
 #import "Basic";
-WGPU :: #import "Jai_WGPU";
+WGPU :: #import "WGPU";
 Window :: #import "Window";
