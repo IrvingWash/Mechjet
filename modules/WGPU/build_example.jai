@@ -13,9 +13,6 @@ Config :: struct {
     plugins_to_create.allocator = temp;
 }
 
-BUILD_PATH_BASE :: "build";
-ENTRY_POINT_PATH_BASE :: "examples";
-MAIN_FILE_PATH :: "src/main.jai";
 EXECUTABLE_NAME :: "target";
 
 #run,stallable {
@@ -65,10 +62,12 @@ build :: (
 
     print("Building example '%'\n", example_name);
 
-    build_dir_path := tprint(
-        "%/%/DEBUG",
-        BUILD_PATH_BASE,
+    absolute_build_path := path_join(
+        #filepath,
+        "build",
         example_name,
+        "DEBUG",,
+        temp,
     );
 
     build_options := get_build_options(workspace);
@@ -79,7 +78,7 @@ build :: (
 
         output_type = .EXECUTABLE;
         output_executable_name = EXECUTABLE_NAME;
-        output_path, intermediate_path = build_dir_path;
+        output_path, intermediate_path = absolute_build_path;
         import_path = make_import_paths(import_path);
 
         #if OS == .LINUX {
@@ -103,7 +102,7 @@ build :: (
 
     set_build_options(build_options, workspace);
 
-    make_directory_if_it_does_not_exist(build_dir_path, recursive = true);
+    make_directory_if_it_does_not_exist(absolute_build_path, recursive = true);
 
     plugins: [..]*Metaprogram_Plugin;
     plugins.allocator = temp;
@@ -127,11 +126,13 @@ build :: (
     }
 
     add_build_file(
-        tprint(
-            "%/%/%",
-            ENTRY_POINT_PATH_BASE,
+        path_join(
+            #filepath,
+            "examples",
             example_name,
-            MAIN_FILE_PATH,
+            "src",
+            "main.jai",,
+            temp,
         ),
         workspace,
     );
