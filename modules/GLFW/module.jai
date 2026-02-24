@@ -1,11 +1,8 @@
 DONT_CARE: s32 : -1;
 
-#if OS == {
-    case .LINUX;
-        #load "linux.jai";
-    case .WINDOWS;
-        #load "windows.jai";
-}
+#load "linux.jai";
+#load "windows.jai";
+#load "macos.jai";
 
 Error_Proc            :: #type (code: s32, description: *u8) #c_call;
 Framebuffer_Size_Proc :: #type (window: *Window, width: s32, height: s32) #c_call;
@@ -396,6 +393,8 @@ glfwGetWindowPos :: (window: *Window, x: *s32, y: *s32) #foreign GLFW;
     case .MACOS;
         GLFW :: #library,no_dll "MACOS/libglfw3";
         #library,system,link_always "IOKit";
+        #library,system,link_always "QuartzCore";
+        #library,system,link_always "AppKit";
     case .WINDOWS;
         GLFW :: #library,no_dll "WINDOWS/Release/glfw3";
         #library,system,link_always "user32";

@@ -19,7 +19,12 @@ Platform_Specific_Window_Info :: union {
     x11: struct {
         window:  GLFW.X11_Window;
         display: GLFW.X11_Display;
-    }
+    };
+    cocoa: struct {
+        window:      GLFW.NS_Window;
+        view:        GLFW.NS_View;
+        metal_layer: *void;
+    };
 }
 
 create_window :: ($$title: string, width: u32, height: u32) -> ok: bool, Window_Handle {
@@ -365,6 +370,25 @@ get_platform_specific_info :: (handle: Window_Handle) -> Platform_Specific_Windo
         case .LINUX;
             info.x11.window = GLFW.get_x11_window(window_data.window);
             info.x11.display = GLFW.get_x11_display();
+        case .MACOS;
+            Metal  :: #import "Metal";
+            ObjC   :: #import "Objective_C";
+            AppKit :: #import "Objective_C/AppKit";
+
+            ObjC.init_objective_c();
+            Metal.init_metal();
+            AppKit.init_app_kit();
+
+            info.cocoa.window = GLFW.get_cocoa_window(window_data.window);
+            info.cocoa.view   = GLFW.get_cocoa_view(window_data.window);
+            info.cocoa.metal_layer = ObjC.objc_new(Metal.CAMetalLayer);
+
+            AppKit.NSView.setWantsLayer(info.cocoa.view, ObjC.YES);
+
+            set_layer_sel := ObjC.sel_registerName("setLayer:");
+            func: (*void, ObjC.Selector, *void) -> void #c_call;
+            func = xx ObjC.objc_msgSend;
+            func(info.cocoa.view, set_layer_sel, info.cocoa.metal_layer);
         case;
             assert(false, "Unsupported OS '%'", OS);
     }

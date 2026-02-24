@@ -260,8 +260,17 @@ create_wgpu_surface :: (window: Window.Window_Handle, instance: WGPU.Instance) -
             };
 
             descriptor.nextInChain = *xlib_surface_source.chain;
+        case .MACOS;
+            metal_surface_source: WGPU.SurfaceSourceMetalLayer = {
+                layer = info.cocoa.metal_layer,
+                chain = WGPU.ChainedStruct.{
+                    sType = .SurfaceSourceMetalLayer,
+                },
+            };
+
+            descriptor.nextInChain = *metal_surface_source.chain;
         case;
-            assert(false, "'%' is not supported!");
+            assert(false, "'%' is not supported!", OS);
     }
 
     surface := WGPU.InstanceCreateSurface(instance, *descriptor);
