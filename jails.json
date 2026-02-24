@@ -1,6 +1,10 @@
 {
     "roots": [
         "src/main.jai",
+        "modules/Window/module.jai",
+        "modules/GLFW/module.jai",
+        "modules/Jai_WGPU/module.jai",
+        "modules/Renderer/module.jai",
         "build.jai",
         "install_tools.jai"
     ],

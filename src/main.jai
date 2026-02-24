@@ -5,7 +5,7 @@
     TEMP_ALLOCATOR_POISON_FREED_MEMORY = DEBUG,
     ENABLE_ASSERT = DEBUG,
 );
-Engine :: #import,dir "Engine"()(DEBUG = DEBUG);
+Engine :: #import "Engine"()(DEBUG = DEBUG);
 
 main :: () {
     defer report_memory_leaks();

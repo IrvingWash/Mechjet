@@ -1,3 +1,5 @@
+#scope_module
+
 Input_State_Handle :: #type *void;
 
 init_input :: (window: Window.Window_Handle) -> Input_State_Handle {
@@ -130,4 +132,4 @@ on_key: Window.Key_Handler : (
 
 #import "Basic";
 #import "Math";
-Window :: #import,file "window.jai";
+Window :: #import "Window";
