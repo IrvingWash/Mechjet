@@ -5,7 +5,11 @@ init_renderer :: (window: Window.Window_Handle) -> ok: bool, Renderer_Handle {
 
     renderer.window = window;
 
-    init_wgpu(renderer.window);
+    ok:, renderer.wgpu_toolbox = init_wgpu(renderer.window);
+    if !ok {
+        log_error("Failed to init WGPU");
+        return false, null;
+    }
 
     return true, renderer;
 }
@@ -13,7 +17,7 @@ init_renderer :: (window: Window.Window_Handle) -> ok: bool, Renderer_Handle {
 deinit_renderer :: (handle: Renderer_Handle) {
     renderer := cast(*Renderer, handle);
 
-    // @Incomplete
+    deinit_wgpu(renderer.wgpu_toolbox);
 
     free(renderer);
 }
@@ -23,7 +27,8 @@ deinit_renderer :: (handle: Renderer_Handle) {
 #scope_file
 
 Renderer :: struct {
-    window: Window.Window_Handle;
+    window:       Window.Window_Handle;
+    wgpu_toolbox: WGPU_Toolbox;
 }
 
 #import "Basic";

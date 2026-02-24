@@ -3,6 +3,7 @@
 init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
     ok:, engine.window = Window.create_window(title, window_width, window_height);
     if !ok {
+        log_error("Failed to create window");
         return false;
     }
 
@@ -10,6 +11,7 @@ init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
 
     ok, engine.renderer = Renderer.init_renderer(engine.window);
     if !ok {
+        log_error("Failed to initialize renderer");
         return false;
     }
 

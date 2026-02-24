@@ -1,44 +1,87 @@
 #scope_module
 
-init_wgpu :: (window: Window.Window_Handle) -> ok: bool {
+WGPU_Toolbox :: struct {
+    surface:              WGPU.Surface;
+    surface_capabilities: WGPU.SurfaceCapabilities;
+    device:               WGPU.Device;
+    queue:                WGPU.Queue;
+}
+
+init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
+    toolbox: WGPU_Toolbox;
+
     WGPU.SetLogCallback(wgpu_log_handler, null);
 
     instance := WGPU.CreateInstance(null);
     if instance == null {
         log_error("Failed to create WGPU Instance");
-        return false;
+        return false, toolbox;
     }
     defer WGPU.InstanceRelease(instance);
 
-    ok, surface := create_wgpu_surface(window, instance);
+    ok:, toolbox.surface = create_wgpu_surface(window, instance);
     if !ok {
-        return false;
+        return false, toolbox;
     }
 
-    ok=, adapter := get_wgpu_adapter(instance, surface);
+    ok=, adapter := get_wgpu_adapter(instance, toolbox.surface);
     if !ok {
-        return false;
+        return false, toolbox;
     }
     defer WGPU.AdapterRelease(adapter);
 
-    surface_capabilities: WGPU.SurfaceCapabilities;
-    status := WGPU.SurfaceGetCapabilities(surface, adapter, *surface_capabilities);
+    status := WGPU.SurfaceGetCapabilities(toolbox.surface, adapter, *toolbox.surface_capabilities);
     if status != .Success {
         log_error("Failed to get WGPU Surface Capabilities");
-        return false;
+        return false, toolbox;
     }
 
-    ok =, device := get_wgpu_device(adapter);
+    ok, toolbox.device = get_wgpu_device(adapter);
     if !ok {
-        return false;
+        return false, toolbox;
     }
 
-    return true;
+    configure_wgpu_surface(toolbox.surface, toolbox.device, toolbox.surface_capabilities, window);
+
+    toolbox.queue = WGPU.DeviceGetQueue(toolbox.device);
+
+    return true, toolbox;
+}
+
+deinit_wgpu :: (toolbox: WGPU_Toolbox) {
+    WGPU.QueueRelease(toolbox.queue);
+
+    WGPU.SurfaceUnconfigure(toolbox.surface);
+
+    WGPU.DeviceRelease(toolbox.device);
+
+    WGPU.SurfaceRelease(toolbox.surface);
 }
 
 
 
 #scope_file
+
+configure_wgpu_surface :: (
+    surface: WGPU.Surface,
+    device: WGPU.Device,
+    capabilities: WGPU.SurfaceCapabilities,
+    window: Window.Window_Handle,
+) {
+    width, height := Window.get_framebuffer_size(window);
+
+    config: WGPU.SurfaceConfiguration = {
+        device      = device,
+        format      = capabilities.formats[0],
+        usage       = WGPU.WGPUTextureUsage_RenderAttachment,
+        width       = width,
+        height      = height,
+        alphaMode   = .Opaque,
+        presentMode = .Fifo,
+    };
+
+    WGPU.SurfaceConfigure(surface, *config);
+}
 
 get_wgpu_device :: (adapter: WGPU.Adapter) -> ok: bool, WGPU.Device {
     on_device_lost: WGPU.DeviceLostCallback : (
