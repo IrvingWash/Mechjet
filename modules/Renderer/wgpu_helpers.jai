@@ -86,6 +86,25 @@ get_wgpu_surface_texture_view :: (surface: WGPU.Surface) -> ok: bool, WGPU.Textu
     return true, WGPU.TextureCreateView(surface_texture.texture, *descriptor), surface_texture.texture;
 }
 
+create_wgpu_shader :: (device: WGPU.Device, path: string) -> ok: bool, WGPU.ShaderModule {
+    code, ok := read_entire_file(path,, temp);
+    if !ok {
+        log_error("Failed to read shader file at '%'", path);
+        return false, null;
+    }
+
+    source: WGPU.ShaderSourceWGSL = {
+        chain = { sType = .ShaderSourceWGSL },
+        code = WGPU.to_string_view(code),
+    };
+
+    descriptor: WGPU.ShaderModuleDescriptor = {
+        nextInChain = *source.chain,
+    };
+
+    return true, WGPU.DeviceCreateShaderModule(device, *descriptor);
+}
+
 
 
 #scope_file
@@ -197,7 +216,7 @@ get_wgpu_adapter :: (instance: WGPU.Instance, surface: WGPU.Surface) -> ok: bool
         powerPreference      = .HighPerformance,
         forceFallbackAdapter = xx false,
         compatibleSurface    = surface,
-        backendType          = .Undefined, // @Robustness maybe set to platform-preffered?
+        backendType          = .Undefined,
     };
 
     User_Data :: struct {
@@ -306,5 +325,6 @@ wgpu_log_handler :: (
     }
 }
 
+#import "File";
 WGPU   :: #import "WGPU";
 Window :: #import "Window";
