@@ -1,7 +1,7 @@
 //
 // This file was auto-generated using the following command:
 //
-// jai generate.jai
+// jai ./modules/WGPU/generate.jai
 //
 
 
@@ -4369,9 +4369,10 @@ DeviceExtras :: struct {
 
 NativeLimits :: struct {
     /** This struct chain is used as mutable in some places and immutable in others. */
-    chain:                 ChainedStructOut;
-    maxPushConstantSize:   u32;
-    maxNonSamplerBindings: u32;
+    chain:                                 ChainedStructOut;
+    maxPushConstantSize:                   u32;
+    maxNonSamplerBindings:                 u32;
+    maxBindingArrayElementsPerShaderStage: u32;
 }
 
 PushConstantRange :: struct {
@@ -6611,9 +6612,12 @@ libwgpu_native :: #library,no_dll "linux/libwgpu_native";
                 case "maxNonSamplerBindings";
                     assert(it.offset_in_bytes == 20, "NativeLimits.maxNonSamplerBindings has unexpected offset % instead of 20", it.offset_in_bytes);
                     assert(it.type.runtime_size == 4, "NativeLimits.maxNonSamplerBindings has unexpected size % instead of 4", it.type.runtime_size);
+                case "maxBindingArrayElementsPerShaderStage";
+                    assert(it.offset_in_bytes == 24, "NativeLimits.maxBindingArrayElementsPerShaderStage has unexpected offset % instead of 24", it.offset_in_bytes);
+                    assert(it.type.runtime_size == 4, "NativeLimits.maxBindingArrayElementsPerShaderStage has unexpected size % instead of 4", it.type.runtime_size);
             }
         }
-        assert(size_of(NativeLimits) == 24, "NativeLimits has size % instead of 24", size_of(NativeLimits));
+        assert(size_of(NativeLimits) == 32, "NativeLimits has size % instead of 32", size_of(NativeLimits));
     }
 
     {
