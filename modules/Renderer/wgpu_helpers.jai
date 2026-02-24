@@ -269,6 +269,16 @@ create_wgpu_surface :: (window: Window.Window_Handle, instance: WGPU.Instance) -
             };
 
             descriptor.nextInChain = *metal_surface_source.chain;
+        case .WINDOWS;
+            hwnd_surface_source: WGPU.SurfaceSourceWindowsHWND = {
+                hwnd      = info.win32.hwnd,
+                hinstance = info.win32.hinstance,
+                chain = WGPU.ChainedStruct.{
+                    sType = .SurfaceSourceWindowsHWND,
+                },
+            };
+
+            descriptor.nextInChain = *hwnd_surface_source.chain;
         case;
             assert(false, "'%' is not supported!", OS);
     }

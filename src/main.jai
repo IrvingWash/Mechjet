@@ -8,7 +8,9 @@
 Engine :: #import "Engine"()(DEBUG = DEBUG);
 
 main :: () {
-    defer report_memory_leaks();
+    #if DEBUG {
+        defer report_memory_leaks();
+    }
 
     ok := Engine.init("Mechjet", 800, 600);
     assert(ok);
@@ -19,6 +21,7 @@ main :: () {
 
         Engine.start_drawing();
         Engine.end_drawing();
+
+        reset_temporary_storage();
     }
-    reset_temporary_storage();
 }

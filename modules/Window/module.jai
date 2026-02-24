@@ -25,6 +25,10 @@ Platform_Specific_Window_Info :: union {
         view:        GLFW.NS_View;
         metal_layer: *void;
     };
+    win32: struct {
+        hwnd:      GLFW.HWND;
+        hinstance: *void;
+    }
 }
 
 create_window :: ($$title: string, width: u32, height: u32) -> ok: bool, Window_Handle {
@@ -389,6 +393,11 @@ get_platform_specific_info :: (handle: Window_Handle) -> Platform_Specific_Windo
             func: (*void, ObjC.Selector, *void) -> void #c_call;
             func = xx ObjC.objc_msgSend;
             func(info.cocoa.view, set_layer_sel, info.cocoa.metal_layer);
+        case .WINDOWS;
+            Windows :: #import "Windows";
+
+            info.win32.hwnd      = GLFW.get_win32_window(window_data.window);
+            info.win32.hinstance = Windows.GetModuleHandleW(null);;
         case;
             assert(false, "Unsupported OS '%'", OS);
     }
