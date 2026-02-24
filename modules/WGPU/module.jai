@@ -1,5 +1,20 @@
 DEPTH_SLICE_UNDEFINED :: U32_MAX;
 
+from_string_view :: (text: StringView) -> string {
+    return {
+        data  = text.data,
+        count = xx text.length,
+    };
+}
+
+to_string_view :: (text: string) -> StringView {
+    return {
+        data   = text.data,
+        length = xx text.count
+    };
+}
+
+
 #if OS == {
     case .LINUX;
         #load "linux.jai";

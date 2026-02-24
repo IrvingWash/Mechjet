@@ -19,7 +19,7 @@ init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
 deinit :: () {
     Renderer.deinit_renderer(engine.renderer);
 
-    init_input(engine.input_state);
+    deinit_input(engine.input_state);
 
     Window.destroy_window(engine.window);
 }

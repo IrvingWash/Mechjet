@@ -1,0 +1,220 @@
+#scope_module
+
+init_wgpu :: (window: Window.Window_Handle) -> ok: bool {
+    WGPU.SetLogCallback(wgpu_log_handler, null);
+
+    instance := WGPU.CreateInstance(null);
+    if instance == null {
+        log_error("Failed to create WGPU Instance");
+        return false;
+    }
+    defer WGPU.InstanceRelease(instance);
+
+    ok, surface := create_wgpu_surface(window, instance);
+    if !ok {
+        return false;
+    }
+
+    ok=, adapter := get_wgpu_adapter(instance, surface);
+    if !ok {
+        return false;
+    }
+    defer WGPU.AdapterRelease(adapter);
+
+    surface_capabilities: WGPU.SurfaceCapabilities;
+    status := WGPU.SurfaceGetCapabilities(surface, adapter, *surface_capabilities);
+    if status != .Success {
+        log_error("Failed to get WGPU Surface Capabilities");
+        return false;
+    }
+
+    ok =, device := get_wgpu_device(adapter);
+    if !ok {
+        return false;
+    }
+
+    return true;
+}
+
+
+
+#scope_file
+
+get_wgpu_device :: (adapter: WGPU.Adapter) -> ok: bool, WGPU.Device {
+    on_device_lost: WGPU.DeviceLostCallback : (
+        device: *WGPU.Device,
+        reason: WGPU.DeviceLostReason,
+        message: WGPU.StringView,
+        user_data1: *void,
+        user_data2: *void,
+    ) #c_call {
+        push_context {
+            log_error("WGPU Device is lost: %: %", reason, WGPU.from_string_view(message));
+        }
+    }
+
+    on_uncaptured_error: WGPU.UncapturedErrorCallback : (
+        device: *WGPU.Device,
+        type: WGPU.ErrorType,
+        message: WGPU.StringView,
+        user_data1: *void,
+        user_data2: *void,
+    ) #c_call {
+        push_context {
+            log_error("WGPU uncaptured error: %: %", type, WGPU.from_string_view(message));
+        }
+    }
+
+    descriptor: WGPU.DeviceDescriptor = {
+        label        = WGPU.to_string_view("Main Device"),
+        defaultQueue = WGPU.QueueDescriptor.{
+            label = WGPU.to_string_view("Main Queue"),
+        },
+        deviceLostCallbackInfo = WGPU.DeviceLostCallbackInfo.{
+            callback = on_device_lost,
+        },
+        uncapturedErrorCallbackInfo = WGPU.UncapturedErrorCallbackInfo.{
+            callback = on_uncaptured_error,
+        }
+    };
+
+    On_Device_User_Data :: struct {
+        ok:     bool;
+        device: WGPU.Device;
+    }
+
+    on_device_user_data: On_Device_User_Data;
+
+    on_device: WGPU.RequestDeviceCallback : (
+        status: WGPU.RequestDeviceStatus,
+        device: WGPU.Device,
+        message: WGPU.StringView,
+        user_data1: *void,
+        user_data2: *void,
+    ) #c_call {
+        user_data := cast(*On_Device_User_Data, user_data1);
+
+        if status != .Success {
+            push_context {
+                log_error("Failed to request WGPU Device: %: %", status, WGPU.from_string_view(message));
+            }
+            return;
+        }
+
+        user_data.ok     = true;
+        user_data.device = device;
+    }
+
+    request_device_callback_info: WGPU.RequestDeviceCallbackInfo = {
+        callback  = on_device,
+        userdata1 = *on_device_user_data,
+    };
+
+    WGPU.AdapterRequestDevice(adapter, *descriptor, request_device_callback_info);
+
+    if !on_device_user_data.ok {
+        log_error("Failed to get WGPU Device");
+        return false, null;
+    }
+
+    return true, on_device_user_data.device;
+}
+
+get_wgpu_adapter :: (instance: WGPU.Instance, surface: WGPU.Surface) -> ok: bool, WGPU.Adapter {
+    options: WGPU.RequestAdapterOptions = {
+        featureLevel         = .Core,
+        powerPreference      = .HighPerformance,
+        forceFallbackAdapter = xx false,
+        compatibleSurface    = surface,
+        backendType          = .Undefined, // @Robustness maybe set to platform-preffered?
+    };
+
+    User_Data :: struct {
+        ok:      bool;
+        adapter: WGPU.Adapter;
+    }
+
+    user_data: User_Data;
+
+    callback: WGPU.RequestAdapterCallback : (
+        status: WGPU.RequestAdapterStatus,
+        adapter: WGPU.Adapter,
+        message: WGPU.StringView,
+        user_data1: *void,
+        user_data2: *void,
+    ) #c_call {
+        user_data := cast(*User_Data, user_data1);
+
+        if status != .Success {
+            push_context {
+                log_error("Failed to request WGPU Adapter: %: %", status, WGPU.from_string_view(message));
+            }
+            return;
+        }
+
+        user_data.ok      = true;
+        user_data.adapter = adapter;
+    }
+
+    callback_info: WGPU.RequestAdapterCallbackInfo = {
+        callback  = callback,
+        userdata1 = *user_data,
+    };
+
+    WGPU.InstanceRequestAdapter(instance, *options, callback_info);
+
+    if !user_data.ok {
+        log_error("Failed to get WGPU Adapter");
+        return false, user_data.adapter;
+    }
+
+    return true, user_data.adapter;
+}
+
+create_wgpu_surface :: (window: Window.Window_Handle, instance: WGPU.Instance) -> ok: bool, WGPU.Surface {
+    info := Window.get_platform_specific_info(window);
+
+    descriptor: WGPU.SurfaceDescriptor = {
+        label = WGPU.to_string_view("Main Surface"),
+    };
+
+    #if OS == {
+        case .LINUX;
+            xlib_surface_source: WGPU.SurfaceSourceXlibWindow = {
+                display = info.x11.display,
+                window  = info.x11.window,
+                chain   = WGPU.ChainedStruct.{
+                    sType = .SurfaceSourceXlibWindow,
+                },
+            };
+
+            descriptor.nextInChain = *xlib_surface_source.chain;
+        case;
+            assert(false, "'%' is not supported!");
+    }
+
+    surface := WGPU.InstanceCreateSurface(instance, *descriptor);
+    if surface == null {
+        log_error("Failed to create WGPU Surface");
+        return false, surface;
+    }
+
+    return true, surface;
+}
+
+wgpu_log_handler :: (
+    level: WGPU.LogLevel,
+    message: WGPU.StringView,
+    userdata: *void,
+) #c_call {
+    push_context {
+        log(
+            "WGPU %: %\n",
+            level,
+            WGPU.from_string_view(message),
+        );
+    }
+}
+
+WGPU   :: #import "WGPU";
+Window :: #import "Window";
