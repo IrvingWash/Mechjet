@@ -29,6 +29,11 @@ init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
         return false, toolbox;
     }
     defer WGPU.AdapterRelease(adapter);
+    {
+        adapter_info: WGPU.AdapterInfo;
+        WGPU.AdapterGetInfo(adapter, *adapter_info);
+        log("WGPU initialized with % backend", adapter_info.backendType);
+    }
 
     status := WGPU.SurfaceGetCapabilities(toolbox.surface, adapter, *toolbox.surface_capabilities);
     if status != .Success {
