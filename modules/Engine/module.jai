@@ -1,6 +1,11 @@
 #module_parameters()(DEBUG := false);
 
-init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
+init :: (
+    title: string,
+    window_width: u32,
+    window_height: u32,
+    clear_color: Vector4 = { 0, 0, 1, 1 },
+) -> ok: bool {
     ok:, engine.window = Window.create_window(title, window_width, window_height);
     if !ok {
         log_error("Failed to create window");
@@ -9,7 +14,7 @@ init :: (title: string, window_width: u32, window_height: u32) -> ok: bool {
 
     engine.input_state = init_input(engine.window);
 
-    ok, engine.renderer = Renderer.init_renderer(engine.window);
+    ok, engine.renderer = Renderer.init_renderer(engine.window, clear_color);
     if !ok {
         log_error("Failed to initialize renderer");
         return false;

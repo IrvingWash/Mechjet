@@ -2,7 +2,7 @@ Renderer_Handle :: #type *void;
 
 init_renderer :: (
     window: Window.Window_Handle,
-    clear_color: Vector4 = { 0, 0, 1, 1 }
+    clear_color: Vector4,
 ) -> ok: bool, Renderer_Handle {
     renderer := New(Renderer);
 

@@ -70,6 +70,7 @@ get_wgpu_surface_texture_view :: (surface: WGPU.Surface) -> ok: bool, WGPU.Textu
     WGPU.SurfaceGetCurrentTexture(surface, *surface_texture);
 
     if surface_texture.status > .SuccessSuboptimal {
+        // @Todo maybe pass up the actual status
         return false, null, null;
     }
 
