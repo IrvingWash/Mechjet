@@ -39,12 +39,12 @@ should_quit :: inline () -> bool {
     return Window.should_window_close(engine.window);
 }
 
-// @Todo bad api
+// @Todo maybe call this in begin frame?
 start_drawing :: inline () {
     Renderer.start_drawing(engine.renderer);
 }
 
-// @Todo bad api
+// @Todo maybe have something like end_frame and put this there?
 end_drawing :: inline () {
     Renderer.end_drawing(engine.renderer);
 }
