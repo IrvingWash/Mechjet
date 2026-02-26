@@ -14,6 +14,11 @@ to_string_view :: (text: string) -> StringView {
     };
 }
 
+to_wgpu_color :: (color: Vector4) -> Color {
+    using color;
+
+    return { x, y, z, w };
+}
 
 #if OS == {
     case .LINUX;
