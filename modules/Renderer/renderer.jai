@@ -63,7 +63,7 @@ end_drawing :: (handle: Renderer_Handle) {
     command_encoder := WGPU.DeviceCreateCommandEncoder(device, null);
     defer WGPU.CommandEncoderRelease(command_encoder);
 
-    do_backbuffer_pass(command_encoder, surface_texture_view, renderer);
+    do_forward_pass(command_encoder, surface_texture_view, renderer);
 
     command_buffer := WGPU.CommandEncoderFinish(command_encoder, null);
     defer WGPU.CommandBufferRelease(command_buffer);
@@ -77,7 +77,7 @@ end_drawing :: (handle: Renderer_Handle) {
 
 #scope_file
 
-do_backbuffer_pass :: (
+do_forward_pass :: (
     command_encoder: WGPU.CommandEncoder,
     texture_view:    WGPU.TextureView,
     renderer:        *Renderer,
