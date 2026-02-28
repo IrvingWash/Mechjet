@@ -1,6 +1,10 @@
 Renderer_Handle :: #type *void;
 
 Render_Camera :: struct {
+    position: Vector3;
+    target:   Vector3;
+    up:       Vector3;
+
     fov_radians: float;
     z_near: float;
     z_far:  float;
@@ -62,23 +66,7 @@ deinit_renderer :: (handle: Renderer_Handle) {
 start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
     renderer := cast(*Renderer, handle);
 
-    // @Todo handle this in a separate procedure
-    width, height := Window.get_framebuffer_size(renderer.window);
-    renderer.transforms.projection = make_projection_matrix(
-        camera.fov_radians,
-        cast(float, width) / cast(float, height),
-        camera.z_near,
-        camera.z_far,
-        depth_range_01 = true,
-    );
-
-    WGPU.QueueWriteBuffer(
-        renderer.wgpu_toolbox.queue,
-        renderer.transforms.buffer,
-        0,
-        *transpose(renderer.transforms.projection).coef[0][0],
-        WGPU.BufferGetSize(renderer.transforms.buffer),
-    );
+    update_transforms(renderer, camera);
 }
 
 end_drawing :: (handle: Renderer_Handle) {
@@ -113,11 +101,19 @@ end_drawing :: (handle: Renderer_Handle) {
 #scope_file
 
 Transforms :: struct {
-    projection: Matrix4;
+    matrices: Matrices;
 
     bind_group_layout: WGPU.BindGroupLayout;
     bind_group:        WGPU.BindGroup;
     buffer:            WGPU.Buffer;
+
+    Matrices :: struct {
+        projection: Matrix4;
+        view:       Matrix4;
+
+        PROJECTION_OFFSET :: 0;
+        VIEW_OFFSET       :: size_of(Matrix4);
+    }
 }
 
 Renderer :: struct {
@@ -176,7 +172,7 @@ create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, W
         visibility = WGPU.WGPUShaderStage_Vertex,
         buffer     = WGPU.BufferBindingLayout.{
             type             = .Uniform,
-            minBindingSize   = size_of(Matrix4),
+            minBindingSize   = size_of(Transforms.Matrices),
             hasDynamicOffset = xx false,
         },
     };
@@ -192,7 +188,7 @@ create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, W
 
     uniform_buffer_descriptor: WGPU.BufferDescriptor = {
         usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
-        size  = WGPU.to_copy_buffer_alignment(size_of(Matrix4)),
+        size  = WGPU.to_copy_buffer_alignment(size_of(Transforms.Matrices)),
     };
 
     uniform_buffer := WGPU.DeviceCreateBuffer(device, *uniform_buffer_descriptor);
@@ -203,7 +199,7 @@ create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, W
         binding = 0,
         buffer = uniform_buffer,
         offset = 0,
-        size = size_of(Matrix4),
+        size = size_of(Transforms.Matrices),
     };
 
     group_descriptor: WGPU.BindGroupDescriptor = {
@@ -241,12 +237,12 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
         },
         WGPU.VertexAttribute.{
             format         = .Float32x3,
-            offset         = size_of(Vector3),
+            offset         = Vertex.NORMAL_OFFSET,
             shaderLocation = 1,
         },
         WGPU.VertexAttribute.{
             format         = .Float32x2,
-            offset         = size_of(Vector3) + size_of(Vector3),
+            offset         = Vertex.UV_OFFSET,
             shaderLocation = 2,
         },
     ];
@@ -320,22 +316,56 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
     return WGPU.DeviceCreateRenderPipeline(device, *descriptor);
 }
 
+update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
+    // @Todo later we will need the width and height of the texture (when we start drawing to a separate texture instead of drawing directly to the surface)
+    width, height := Window.get_framebuffer_size(renderer.window);
+    renderer.transforms.matrices.projection = make_projection_matrix(
+        camera.fov_radians,
+        cast(float, width) / cast(float, height),
+        camera.z_near,
+        camera.z_far,
+        depth_range_01 = true,
+    );
+
+    renderer.transforms.matrices.view = make_look_at_matrix(
+        camera.position,
+        camera.target,
+        camera.up,
+        x_is_forward = false,
+    );
+
+    WGPU.QueueWriteBuffer(
+        renderer.wgpu_toolbox.queue,
+        renderer.transforms.buffer,
+        Transforms.Matrices.PROJECTION_OFFSET,
+        *transpose(renderer.transforms.matrices.projection).floats,
+        size_of(Matrix4),
+    );
+    WGPU.QueueWriteBuffer(
+        renderer.wgpu_toolbox.queue,
+        renderer.transforms.buffer,
+        Transforms.Matrices.VIEW_OFFSET,
+        *transpose(renderer.transforms.matrices.view).floats,
+        size_of(Matrix4),
+    );
+}
+
 create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @no_merge
     mesh: Mesh;
 
     VERTICES :: Vertex.[
         {
-            position = { -0.5, -0.5, -1 },
+            position = { -0.5, -0.5, 0 },
             normal = { 0, 0, 1 },
             uv     = { 0, 0 },
         },
         {
-            position = { 0.5, -0.5, -1 },
+            position = { 0.5, -0.5, 0 },
             normal = { 0, 0, 1 },
             uv     = { 0, 0 },
         },
         {
-            position = { 0, 0.5, -1 },
+            position = { 0, 0.5, 0 },
             normal = { 0, 0, 1 },
             uv     = { 0, 0 },
         },

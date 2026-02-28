@@ -5,9 +5,14 @@
     TEMP_ALLOCATOR_POISON_FREED_MEMORY = DEBUG,
     ENABLE_ASSERT = DEBUG,
 );
+#import "Math";
 Engine :: #import "Engine"()(DEBUG = DEBUG);
 
 Camera :: struct {
+    position: Vector3;
+    target:   Vector3;
+    up:       Vector3 = { 0, 1, 0 };
+
     fov_radians: float;
     z_near: float;
     z_far:  float;
@@ -25,7 +30,15 @@ main :: () {
     while !Engine.should_quit() {
         Engine.begin_frame();
 
-        Engine.start_drawing(Camera.{ fov_radians = Engine.deg_to_rad(60), z_near = 0.1, z_far = 100 });
+        Engine.start_drawing(
+            Camera.{
+                position = { 0, 0, 1 },
+                fov_radians = Engine.deg_to_rad(60),
+                z_near = 0.1,
+                z_far = 100,
+            },
+        );
+
         Engine.end_drawing();
 
         reset_temporary_storage();

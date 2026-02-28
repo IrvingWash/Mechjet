@@ -10,6 +10,10 @@ Vertex :: struct { // @no_merge
     position: Vector3;
     normal:   Vector3;
     uv:       Vector2;
+
+    POSITION_OFFSET :: 0;
+    NORMAL_OFFSET   :: size_of(Vector3);
+    UV_OFFSET       :: size_of(Vector3) * 2;
 }
 
 

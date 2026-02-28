@@ -1,5 +1,6 @@
 struct Transforms {
     projection: mat4x4f,
+    view:       mat4x4f,
 }
 
 struct VertexInput {
@@ -21,7 +22,7 @@ var<uniform> uTransforms: Transforms;
 fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
-    output.world_position = uTransforms.projection * vec4f(input.position, 1);
+    output.world_position = uTransforms.projection * uTransforms.view * vec4f(input.position, 1);
     output.normal   = input.normal;
     output.uv = input.uv;
 
