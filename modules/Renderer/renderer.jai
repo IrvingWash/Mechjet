@@ -306,7 +306,7 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
 
     descriptor: WGPU.RenderPipelineDescriptor = {
         label       = WGPU.to_string_view("Model Render Pipeline"),
-        layout      = WGPU.DeviceCreatePipelineLayout(device, *pipeline_layout_descriptor),
+        layout      = WGPU.DeviceCreatePipelineLayout(device, *pipeline_layout_descriptor), // @Todo leaks!
         vertex      = vertex_state,
         primitive   = primitive_state,
         multisample = multisample_state,
@@ -334,6 +334,7 @@ update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
         x_is_forward = false,
     );
 
+    // @Todo do this in a single call
     WGPU.QueueWriteBuffer(
         renderer.wgpu_toolbox.queue,
         renderer.transforms.buffer,
