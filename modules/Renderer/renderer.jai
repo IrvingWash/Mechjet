@@ -192,7 +192,7 @@ create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, W
 
     uniform_buffer_descriptor: WGPU.BufferDescriptor = {
         usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
-        size  = size_of(Matrix4),
+        size  = WGPU.to_copy_buffer_alignment(size_of(Matrix4)),
     };
 
     uniform_buffer := WGPU.DeviceCreateBuffer(device, *uniform_buffer_descriptor);
