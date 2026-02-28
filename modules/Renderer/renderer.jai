@@ -117,14 +117,19 @@ create_triangle_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Te
 
     vertex_attributes := WGPU.VertexAttribute.[
         WGPU.VertexAttribute.{
-            format         = .Float32x2,
+            format         = .Float32x3,
             offset         = 0,
             shaderLocation = 0,
         },
         WGPU.VertexAttribute.{
             format         = .Float32x3,
-            offset         = size_of(Vector2),
+            offset         = size_of(Vector3),
             shaderLocation = 1,
+        },
+        WGPU.VertexAttribute.{
+            format         = .Float32x2,
+            offset         = size_of(Vector3) + size_of(Vector3),
+            shaderLocation = 2,
         },
     ];
 
@@ -201,16 +206,19 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
 
     VERTICES :: Vertex.[
         {
-            position = { -0.5, -0.5 },
-            color = { 1, 0, 0 },
+            position = { -0.5, -0.5, 0 },
+            normal = { 0, 0, 1 },
+            uv     = { 0, 0 },
         },
         {
-            position = { 0.5, -0.5 },
-            color = { 0, 1, 0 },
+            position = { 0.5, -0.5, 0 },
+            normal = { 0, 0, 1 },
+            uv     = { 0, 0 },
         },
         {
-            position = { 0, 0.5 },
-            color = { 0, 0, 1 },
+            position = { 0, 0.5, 0 },
+            normal = { 0, 0, 1 },
+            uv     = { 0, 0 },
         },
     ];
 
@@ -227,8 +235,9 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
 }
 
 Vertex :: struct { // @no_merge
-    position: Vector2;
-    color:    Vector3;
+    position: Vector3;
+    normal:   Vector3;
+    uv:       Vector2;
 }
 
 Mesh :: struct { // @no_merge
