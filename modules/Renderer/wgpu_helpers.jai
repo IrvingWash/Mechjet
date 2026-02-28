@@ -118,6 +118,10 @@ configure_wgpu_surface :: (
 ) -> WGPU.SurfaceConfiguration {
     width, height := Window.get_framebuffer_size(window);
 
+    if capabilities.formats[0] != .BGRA8UnormSrgb {
+        log_error("Got a % texture format for Surface, but wanted %", capabilities.formats[0], WGPU.TextureFormat.BGRA8UnormSrgb );
+    }
+
     config: WGPU.SurfaceConfiguration = {
         device      = device,
         format      = capabilities.formats[0],
