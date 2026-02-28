@@ -110,9 +110,6 @@ Transforms :: struct {
     Matrices :: struct {
         projection: Matrix4;
         view:       Matrix4;
-
-        PROJECTION_OFFSET :: 0;
-        VIEW_OFFSET       :: size_of(Matrix4);
     }
 }
 
@@ -304,9 +301,12 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
         bindGroupLayouts     = *transforms_bind_group_layout,
     };
 
+    pipeline_layout := WGPU.DeviceCreatePipelineLayout(device, *pipeline_layout_descriptor);
+    defer WGPU.PipelineLayoutRelease(pipeline_layout);
+
     descriptor: WGPU.RenderPipelineDescriptor = {
         label       = WGPU.to_string_view("Model Render Pipeline"),
-        layout      = WGPU.DeviceCreatePipelineLayout(device, *pipeline_layout_descriptor), // @Todo leaks!
+        layout      = pipeline_layout,
         vertex      = vertex_state,
         primitive   = primitive_state,
         multisample = multisample_state,
@@ -334,20 +334,17 @@ update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
         x_is_forward = false,
     );
 
-    // @Todo do this in a single call
+    column_major_matrices: Transforms.Matrices = {
+        projection = transpose(renderer.transforms.matrices.projection),
+        view = transpose(renderer.transforms.matrices.view),
+    };
+
     WGPU.QueueWriteBuffer(
         renderer.wgpu_toolbox.queue,
         renderer.transforms.buffer,
-        Transforms.Matrices.PROJECTION_OFFSET,
-        *transpose(renderer.transforms.matrices.projection).floats,
-        size_of(Matrix4),
-    );
-    WGPU.QueueWriteBuffer(
-        renderer.wgpu_toolbox.queue,
-        renderer.transforms.buffer,
-        Transforms.Matrices.VIEW_OFFSET,
-        *transpose(renderer.transforms.matrices.view).floats,
-        size_of(Matrix4),
+        0,
+        *column_major_matrices,
+        size_of(Transforms.Matrices),
     );
 }
 
