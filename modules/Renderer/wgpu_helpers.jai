@@ -47,7 +47,14 @@ init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
         return false, toolbox;
     }
 
-    toolbox.surface_configuration = configure_wgpu_surface(toolbox.surface, toolbox.device, toolbox.surface_capabilities, window);
+    width, height := Window.get_framebuffer_size(window);
+    toolbox.surface_configuration = configure_wgpu_surface(
+        toolbox.surface,
+        toolbox.device,
+        toolbox.surface_capabilities,
+        width,
+        height,
+    );
 
     toolbox.queue = WGPU.DeviceGetQueue(toolbox.device);
 
@@ -106,18 +113,13 @@ create_wgpu_shader_module :: (device: WGPU.Device, path: string) -> ok: bool, WG
     return true, WGPU.DeviceCreateShaderModule(device, *descriptor);
 }
 
-
-
-#scope_file
-
 configure_wgpu_surface :: (
-    surface: WGPU.Surface,
-    device: WGPU.Device,
+    surface:      WGPU.Surface,
+    device:       WGPU.Device,
     capabilities: WGPU.SurfaceCapabilities,
-    window: Window.Window_Handle,
+    width:        u32,
+    height:       u32,
 ) -> WGPU.SurfaceConfiguration {
-    width, height := Window.get_framebuffer_size(window);
-
     if capabilities.formats[0] != .BGRA8UnormSrgb {
         log_error("Got a % texture format for Surface, but wanted %", capabilities.formats[0], WGPU.TextureFormat.BGRA8UnormSrgb );
     }
@@ -136,6 +138,10 @@ configure_wgpu_surface :: (
 
     return config;
 }
+
+
+
+#scope_file
 
 get_wgpu_device :: (adapter: WGPU.Adapter) -> ok: bool, WGPU.Device {
     on_device_lost: WGPU.DeviceLostCallback : (

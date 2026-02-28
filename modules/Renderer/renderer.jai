@@ -41,11 +41,19 @@ init_renderer :: (
         renderer.wgpu_toolbox.queue,
     ); // @no_merge
 
+    Window.add_framebuffer_size_change_handler(
+        renderer.window,
+        handle_framebuffer_size_change,
+        renderer,
+    );
+
     return true, renderer;
 }
 
 deinit_renderer :: (handle: Renderer_Handle) {
     renderer := cast(*Renderer, handle);
+
+    Window.remove_framebuffer_size_change_handler(renderer.window, handle_framebuffer_size_change);
 
     WGPU.BufferRelease(renderer.triangle_mesh.index_buffer); // @no_merge
     WGPU.BufferRelease(renderer.triangle_mesh.vertex_buffer); // @no_merge
@@ -317,8 +325,9 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
 }
 
 update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
-    // @Todo later we will need the width and height of the texture (when we start drawing to a separate texture instead of drawing directly to the surface)
-    width, height := Window.get_framebuffer_size(renderer.window);
+    width  := renderer.wgpu_toolbox.surface_configuration.width;
+    height := renderer.wgpu_toolbox.surface_configuration.height;
+
     renderer.transforms.matrices.projection = make_projection_matrix(
         camera.fov_radians,
         cast(float, width) / cast(float, height),
@@ -346,6 +355,14 @@ update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
         *column_major_matrices,
         size_of(Transforms.Matrices),
     );
+}
+
+handle_framebuffer_size_change :: (width: u32, height: u32, data: *void) {
+    renderer := cast(*Renderer, data);
+
+    using renderer.wgpu_toolbox;
+
+    renderer.wgpu_toolbox.surface_configuration = configure_wgpu_surface(surface, device, surface_capabilities, width, height);
 }
 
 create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @no_merge
