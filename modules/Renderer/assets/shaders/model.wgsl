@@ -1,4 +1,6 @@
-// @no_merge
+struct Transforms {
+    projection: mat4x4f,
+}
 
 struct VertexInput {
     @location(0) position: vec3f,
@@ -12,11 +14,14 @@ struct VertexOutput {
     @location(1)       uv:             vec2f,
 }
 
+@group(0) @binding(0) 
+var<uniform> uTransforms: Transforms;
+
 @vertex
 fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
 
-    output.world_position = vec4f(input.position, 1);
+    output.world_position = uTransforms.projection * vec4f(input.position, 1);
     output.normal   = input.normal;
     output.uv = input.uv;
 

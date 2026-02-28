@@ -1,5 +1,11 @@
 Renderer_Handle :: #type *void;
 
+Render_Camera :: struct {
+    fov_radians: float;
+    z_near: float;
+    z_far:  float;
+}
+
 init_renderer :: (
     window: Window.Window_Handle,
     clear_color: Vector4,
@@ -16,10 +22,15 @@ init_renderer :: (
         return false, null;
     }
 
-    renderer.triangle_render_pipeline = create_triangle_render_pipeline(
+    renderer.transforms.bind_group_layout,
+    renderer.transforms.bind_group,
+    renderer.transforms.buffer = create_transforms_bind_group(renderer.wgpu_toolbox.device);
+
+    renderer.model_render_pipeline = create_model_render_pipeline(
         renderer.wgpu_toolbox.device,
         renderer.wgpu_toolbox.surface_configuration.format,
-    ); // @no_merge
+        renderer.transforms.bind_group_layout,
+    );
 
     renderer.triangle_mesh = create_triangle_mesh(
         renderer.wgpu_toolbox.device,
@@ -35,15 +46,39 @@ deinit_renderer :: (handle: Renderer_Handle) {
     WGPU.BufferRelease(renderer.triangle_mesh.index_buffer); // @no_merge
     WGPU.BufferRelease(renderer.triangle_mesh.vertex_buffer); // @no_merge
 
-    WGPU.RenderPipelineRelease(renderer.triangle_render_pipeline); // @no_merge
+    WGPU.RenderPipelineRelease(renderer.model_render_pipeline);
+
+    release_transforms_bind_group(
+        renderer.transforms.bind_group_layout,
+        renderer.transforms.bind_group,
+        renderer.transforms.buffer,
+    );
 
     deinit_wgpu(renderer.wgpu_toolbox);
 
     free(renderer);
 }
 
-start_drawing :: (handle: Renderer_Handle) {
+start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
     renderer := cast(*Renderer, handle);
+
+    // @Todo handle this in a separate procedure
+    width, height := Window.get_framebuffer_size(renderer.window);
+    renderer.transforms.projection = make_projection_matrix(
+        camera.fov_radians,
+        cast(float, width) / cast(float, height),
+        camera.z_near,
+        camera.z_far,
+        depth_range_01 = true,
+    );
+
+    WGPU.QueueWriteBuffer(
+        renderer.wgpu_toolbox.queue,
+        renderer.transforms.buffer,
+        0,
+        *transpose(renderer.transforms.projection).coef[0][0],
+        WGPU.BufferGetSize(renderer.transforms.buffer),
+    );
 }
 
 end_drawing :: (handle: Renderer_Handle) {
@@ -63,7 +98,7 @@ end_drawing :: (handle: Renderer_Handle) {
     command_encoder := WGPU.DeviceCreateCommandEncoder(device, null);
     defer WGPU.CommandEncoderRelease(command_encoder);
 
-    do_forward_pass(command_encoder, surface_texture_view, renderer);
+    do_forward_pass(renderer, command_encoder, surface_texture_view);
 
     command_buffer := WGPU.CommandEncoderFinish(command_encoder, null);
     defer WGPU.CommandBufferRelease(command_buffer);
@@ -77,10 +112,32 @@ end_drawing :: (handle: Renderer_Handle) {
 
 #scope_file
 
+Transforms :: struct {
+    projection: Matrix4;
+
+    bind_group_layout: WGPU.BindGroupLayout;
+    bind_group:        WGPU.BindGroup;
+    buffer:            WGPU.Buffer;
+}
+
+Renderer :: struct {
+    window:       Window.Window_Handle;
+
+    clear_color:  Vector4;
+
+    wgpu_toolbox: WGPU_Toolbox;
+
+    transforms: Transforms;
+
+    model_render_pipeline: WGPU.RenderPipeline;
+
+    triangle_mesh: Mesh; // @no_merge
+}
+
 do_forward_pass :: (
+    renderer:        *Renderer,
     command_encoder: WGPU.CommandEncoder,
     texture_view:    WGPU.TextureView,
-    renderer:        *Renderer,
 ) {
     render_pass_color_attachment: WGPU.RenderPassColorAttachment = {
         view       = texture_view,
@@ -98,7 +155,9 @@ do_forward_pass :: (
     render_pass_encoder := WGPU.CommandEncoderBeginRenderPass(command_encoder, *render_pass_descriptor);
     defer WGPU.RenderPassEncoderRelease(render_pass_encoder);
 
-    WGPU.RenderPassEncoderSetPipeline(render_pass_encoder, renderer.triangle_render_pipeline); // @no_merge
+    WGPU.RenderPassEncoderSetPipeline(render_pass_encoder, renderer.model_render_pipeline);
+
+    WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms.bind_group, 0, null);
 
     // @no_merge
     WGPU.RenderPassEncoderSetVertexBuffer(render_pass_encoder, 0, renderer.triangle_mesh.vertex_buffer, 0, WGPU.BufferGetSize(renderer.triangle_mesh.vertex_buffer));
@@ -109,12 +168,69 @@ do_forward_pass :: (
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
 }
 
-create_triangle_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.TextureFormat) -> WGPU.RenderPipeline { // @no_merge
+create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, WGPU.BindGroup, WGPU.Buffer {
+    // Bind group layout
+
+    layout_entry: WGPU.BindGroupLayoutEntry = {
+        binding    = 0,
+        visibility = WGPU.WGPUShaderStage_Vertex,
+        buffer     = WGPU.BufferBindingLayout.{
+            type             = .Uniform,
+            minBindingSize   = size_of(Matrix4),
+            hasDynamicOffset = xx false,
+        },
+    };
+
+    layout_descriptor: WGPU.BindGroupLayoutDescriptor = {
+        entryCount = 1,
+        entries    = *layout_entry,
+    };
+
+    layout := WGPU.DeviceCreateBindGroupLayout(device, *layout_descriptor);
+
+    // Buffer
+
+    uniform_buffer_descriptor: WGPU.BufferDescriptor = {
+        usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
+        size  = size_of(Matrix4),
+    };
+
+    uniform_buffer := WGPU.DeviceCreateBuffer(device, *uniform_buffer_descriptor);
+
+    // Bind group
+
+    entry: WGPU.BindGroupEntry = {
+        binding = 0,
+        buffer = uniform_buffer,
+        offset = 0,
+        size = size_of(Matrix4),
+    };
+
+    group_descriptor: WGPU.BindGroupDescriptor = {
+        layout     = layout,
+        entryCount = 1,
+        entries    = *entry,
+    };
+
+    group := WGPU.DeviceCreateBindGroup(device, *group_descriptor);
+
+    return layout, group, uniform_buffer;
+}
+
+release_transforms_bind_group :: (layout: WGPU.BindGroupLayout, group: WGPU.BindGroup, buffer: WGPU.Buffer) {
+    WGPU.BufferRelease(buffer);
+
+    WGPU.BindGroupRelease(group);
+
+    WGPU.BindGroupLayoutRelease(layout);
+}
+
+create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.TextureFormat, transforms_bind_group_layout: WGPU.BindGroupLayout) -> WGPU.RenderPipeline {
     ok, shader_module := create_wgpu_shader_module(
         device,
-        path_join(#filepath, "assets/shaders/triangle.wgsl",, temp),
+        path_join(#filepath, "assets/shaders/model.wgsl",, temp),
     );
-    assert(ok);
+    assert(ok, "Failed to load default model shader"); // @Todo handle more gracefully
     defer WGPU.ShaderModuleRelease(shader_module);
 
     vertex_attributes := WGPU.VertexAttribute.[
@@ -188,11 +304,12 @@ create_triangle_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Te
     };
 
     pipeline_layout_descriptor: WGPU.PipelineLayoutDescriptor = {
-        bindGroupLayoutCount = 0,
+        bindGroupLayoutCount = 1,
+        bindGroupLayouts     = *transforms_bind_group_layout,
     };
 
     descriptor: WGPU.RenderPipelineDescriptor = {
-        label       = WGPU.to_string_view("Triangle Render Pipeline"),
+        label       = WGPU.to_string_view("Model Render Pipeline"),
         layout      = WGPU.DeviceCreatePipelineLayout(device, *pipeline_layout_descriptor),
         vertex      = vertex_state,
         primitive   = primitive_state,
@@ -208,17 +325,17 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
 
     VERTICES :: Vertex.[
         {
-            position = { -0.5, -0.5, 0 },
+            position = { -0.5, -0.5, -1 },
             normal = { 0, 0, 1 },
             uv     = { 0, 0 },
         },
         {
-            position = { 0.5, -0.5, 0 },
+            position = { 0.5, -0.5, -1 },
             normal = { 0, 0, 1 },
             uv     = { 0, 0 },
         },
         {
-            position = { 0, 0.5, 0 },
+            position = { 0, 0.5, -1 },
             normal = { 0, 0, 1 },
             uv     = { 0, 0 },
         },
@@ -248,29 +365,10 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
     return mesh;
 }
 
-Vertex :: struct { // @no_merge
-    position: Vector3;
-    normal:   Vector3;
-    uv:       Vector2;
-}
-
-Mesh :: struct { // @no_merge
-    vertex_buffer: WGPU.Buffer;
-    index_buffer:  WGPU.Buffer;
-    index_count:   u32;
-}
-
-Renderer :: struct {
-    window:       Window.Window_Handle;
-    clear_color:  Vector4;
-    wgpu_toolbox: WGPU_Toolbox;
-    triangle_render_pipeline: WGPU.RenderPipeline; // @no_merge
-    triangle_mesh: Mesh; // #no_merge
-}
-
 #import "Basic";
 #import "Math";
-#import "String"; // @no_merge
+#import "String";
 WGPU :: #import "WGPU";
 Window :: #import "Window";
 #load "wgpu_helpers.jai";
+#load "model.jai";

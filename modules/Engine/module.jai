@@ -40,8 +40,8 @@ should_quit :: inline () -> bool {
 }
 
 // @Todo maybe call this in begin frame?
-start_drawing :: inline () {
-    Renderer.start_drawing(engine.renderer);
+start_drawing :: inline (camera: $T/interface Renderer.Render_Camera) {
+    Renderer.start_drawing(engine.renderer, camera);
 }
 
 // @Todo maybe have something like end_frame and put this there?
