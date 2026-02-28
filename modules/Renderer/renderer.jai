@@ -36,11 +36,6 @@ init_renderer :: (
         renderer.transforms.bind_group_layout,
     );
 
-    renderer.triangle_mesh = create_triangle_mesh(
-        renderer.wgpu_toolbox.device,
-        renderer.wgpu_toolbox.queue,
-    ); // @no_merge
-
     Window.add_framebuffer_size_change_handler(
         renderer.window,
         handle_framebuffer_size_change,
@@ -53,10 +48,9 @@ init_renderer :: (
 deinit_renderer :: (handle: Renderer_Handle) {
     renderer := cast(*Renderer, handle);
 
-    Window.remove_framebuffer_size_change_handler(renderer.window, handle_framebuffer_size_change);
+    array_free(renderer.models);
 
-    WGPU.BufferRelease(renderer.triangle_mesh.index_buffer); // @no_merge
-    WGPU.BufferRelease(renderer.triangle_mesh.vertex_buffer); // @no_merge
+    Window.remove_framebuffer_size_change_handler(renderer.window, handle_framebuffer_size_change);
 
     WGPU.RenderPipelineRelease(renderer.model_render_pipeline);
 
@@ -75,6 +69,15 @@ start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
     renderer := cast(*Renderer, handle);
 
     update_transforms(renderer, camera);
+
+    // @Todo array_reset_keeping memory?
+    array_reset(*renderer.models); // @no_merge
+}
+
+draw_model :: (handle: Renderer_Handle, model: Model) {
+    renderer := cast(*Renderer, handle);
+
+    array_add(*renderer.models, model);
 }
 
 end_drawing :: (handle: Renderer_Handle) {
@@ -102,6 +105,13 @@ end_drawing :: (handle: Renderer_Handle) {
     WGPU.QueueSubmit(queue, 1, *command_buffer);
 
     WGPU.SurfacePresent(surface);
+}
+
+// @Todo we should try to handle this better
+get_toolbox :: (handle: Renderer_Handle) -> WGPU_Toolbox { // @no_merge
+    renderer := cast(*Renderer, handle);
+
+    return renderer.wgpu_toolbox;
 }
 
 
@@ -132,7 +142,8 @@ Renderer :: struct {
 
     model_render_pipeline: WGPU.RenderPipeline;
 
-    triangle_mesh: Mesh; // @no_merge
+    // @Todo this should be a table of batches
+    models: [..]Model; // @no_merge
 }
 
 do_forward_pass :: (
@@ -160,11 +171,25 @@ do_forward_pass :: (
 
     WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms.bind_group, 0, null);
 
-    // @no_merge
-    WGPU.RenderPassEncoderSetVertexBuffer(render_pass_encoder, 0, renderer.triangle_mesh.vertex_buffer, 0, WGPU.BufferGetSize(renderer.triangle_mesh.vertex_buffer));
-    WGPU.RenderPassEncoderSetIndexBuffer(render_pass_encoder, renderer.triangle_mesh.index_buffer, .Uint16, 0, WGPU.BufferGetSize(renderer.triangle_mesh.index_buffer));
+    // @Todo remove the hardcode!
+    for model: renderer.models { // @no_merge
+        WGPU.RenderPassEncoderSetVertexBuffer(
+            render_pass_encoder,
+            0,
+            model.meshes[0].vertex_buffer,
+            0,
+            WGPU.BufferGetSize(model.meshes[0].vertex_buffer),
+        );
+        WGPU.RenderPassEncoderSetIndexBuffer(
+            render_pass_encoder,
+            model.meshes[0].index_buffer,
+            .Uint32,
+            0,
+            WGPU.BufferGetSize(model.meshes[0].index_buffer),
+        );
 
-    WGPU.RenderPassEncoderDrawIndexed(render_pass_encoder, renderer.triangle_mesh.index_count, 1, 0, 0, 0); // @no_merge
+        WGPU.RenderPassEncoderDrawIndexed(render_pass_encoder, model.meshes[0].index_count, 1, 0, 0, 0);
+    }
 
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
 }
@@ -363,51 +388,6 @@ handle_framebuffer_size_change :: (width: u32, height: u32, data: *void) {
     using renderer.wgpu_toolbox;
 
     renderer.wgpu_toolbox.surface_configuration = configure_wgpu_surface(surface, device, surface_capabilities, width, height);
-}
-
-create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @no_merge
-    mesh: Mesh;
-
-    VERTICES :: Vertex.[
-        {
-            position = { -0.5, -0.5, 0 },
-            normal = { 0, 0, 1 },
-            uv     = { 0, 0 },
-        },
-        {
-            position = { 0.5, -0.5, 0 },
-            normal = { 0, 0, 1 },
-            uv     = { 0, 0 },
-        },
-        {
-            position = { 0, 0.5, 0 },
-            normal = { 0, 0, 1 },
-            uv     = { 0, 0 },
-        },
-    ];
-
-    INDICES :: u16.[
-        0, 1, 2,
-    ];
-
-    vertex_buffer_descriptor: WGPU.BufferDescriptor = {
-        usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
-        size  = WGPU.to_copy_buffer_alignment(size_of(type_of(VERTICES))),
-        // @Todo use mapped at creation?
-    };
-    mesh.vertex_buffer = WGPU.DeviceCreateBuffer(device, *vertex_buffer_descriptor);
-    WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, VERTICES.data, vertex_buffer_descriptor.size);
-
-    index_buffer_descriptor: WGPU.BufferDescriptor = {
-        usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Index,
-        size = WGPU.to_copy_buffer_alignment(size_of(type_of(INDICES))),
-        // @Todo use mapped at creation?
-    };
-    mesh.index_buffer = WGPU.DeviceCreateBuffer(device, *index_buffer_descriptor);
-    mesh.index_count = INDICES.count;
-    WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, INDICES.data, index_buffer_descriptor.size);
-
-    return mesh;
 }
 
 #import "Basic";

@@ -30,17 +30,28 @@ main :: () {
     assert(ok);
     defer Engine.deinit();
 
+    gltf_converter := GLTF.create_converter();
+    error, triangle_scene := GLTF.load_scene(gltf_converter, "modules/GLTF/assets/triangle_glb/triangle.glb");
+    assert(error == "", "Failed to load triangle");
+    GLTF.destroy_converter(gltf_converter);
+    toolbox := Engine.get_toolbox();
+    triangle_model := Engine.create_model(triangle_scene, toolbox.device, toolbox.queue);
+    defer Engine.destroy_model(*triangle_model);
+    GLTF.release_scene(*triangle_scene);
+
     while !Engine.should_quit() {
         Engine.begin_frame();
 
         Engine.start_drawing(
             Camera.{
-                position = { 0, 0, 3 },
+                position = { 0, 3, 0 },
                 fov_radians = Engine.deg_to_rad(60),
                 z_near = 0.1,
                 z_far = 100,
             },
         );
+
+        Engine.draw_model(triangle_model);
 
         Engine.end_drawing();
 

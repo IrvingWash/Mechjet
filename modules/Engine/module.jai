@@ -44,9 +44,20 @@ start_drawing :: inline (camera: $T/interface Renderer.Render_Camera) {
     Renderer.start_drawing(engine.renderer, camera);
 }
 
+draw_model :: inline (model: Renderer.Model) {
+    Renderer.draw_model(engine.renderer, model);
+}
+
 // @Todo maybe have something like end_frame and put this there?
 end_drawing :: inline () {
     Renderer.end_drawing(engine.renderer);
+}
+
+// @Todo these should be called in the asset storage
+create_model  :: Renderer.create_model; // @no_merge
+destroy_model :: Renderer.destroy_model; // @no_merge
+get_toolbox  :: () -> Renderer.WGPU_Toolbox { // @no_merge
+    return Renderer.get_toolbox(engine.renderer);
 }
 
 deg_to_rad :: (degrees: float) -> float {
