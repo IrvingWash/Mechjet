@@ -1,5 +1,11 @@
 DEPTH_SLICE_UNDEFINED :: U32_MAX;
 
+to_copy_buffer_alignment :: (size: u32) -> u32 {
+    COPY_BUFFER_ALIGNMENT: u32 : 4;
+
+    return (size + (COPY_BUFFER_ALIGNMENT - 1)) & ~(COPY_BUFFER_ALIGNMENT - 1);
+}
+
 from_string_view :: (text: StringView) -> string {
     return {
         data  = text.data,

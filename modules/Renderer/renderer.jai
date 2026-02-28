@@ -32,6 +32,7 @@ init_renderer :: (
 deinit_renderer :: (handle: Renderer_Handle) {
     renderer := cast(*Renderer, handle);
 
+    WGPU.BufferRelease(renderer.triangle_mesh.index_buffer); // @no_merge
     WGPU.BufferRelease(renderer.triangle_mesh.vertex_buffer); // @no_merge
 
     WGPU.RenderPipelineRelease(renderer.triangle_render_pipeline); // @no_merge
@@ -101,8 +102,9 @@ do_backbuffer_pass :: (
 
     // @no_merge
     WGPU.RenderPassEncoderSetVertexBuffer(render_pass_encoder, 0, renderer.triangle_mesh.vertex_buffer, 0, WGPU.BufferGetSize(renderer.triangle_mesh.vertex_buffer));
+    WGPU.RenderPassEncoderSetIndexBuffer(render_pass_encoder, renderer.triangle_mesh.index_buffer, .Uint16, 0, WGPU.BufferGetSize(renderer.triangle_mesh.index_buffer));
 
-    WGPU.RenderPassEncoderDraw(render_pass_encoder, 3, 1, 0, 0); // @no_merge
+    WGPU.RenderPassEncoderDrawIndexed(render_pass_encoder, renderer.triangle_mesh.index_count, 1, 0, 0, 0); // @no_merge
 
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
 }
@@ -222,14 +224,24 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
         },
     ];
 
+    INDICES :: u16.[
+        0, 1, 2,
+    ];
+
     vertex_buffer_descriptor: WGPU.BufferDescriptor = {
         usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
-        size  = size_of(type_of(VERTICES)),
+        size  = WGPU.to_copy_buffer_alignment(size_of(type_of(VERTICES))),
     };
-
     mesh.vertex_buffer = WGPU.DeviceCreateBuffer(device, *vertex_buffer_descriptor);
-
     WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, VERTICES.data, vertex_buffer_descriptor.size);
+
+    index_buffer_descriptor: WGPU.BufferDescriptor = {
+        usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Index,
+        size = WGPU.to_copy_buffer_alignment(size_of(type_of(INDICES))),
+    };
+    mesh.index_buffer = WGPU.DeviceCreateBuffer(device, *index_buffer_descriptor);
+    mesh.index_count = INDICES.count;
+    WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, INDICES.data, index_buffer_descriptor.size);
 
     return mesh;
 }
@@ -242,6 +254,8 @@ Vertex :: struct { // @no_merge
 
 Mesh :: struct { // @no_merge
     vertex_buffer: WGPU.Buffer;
+    index_buffer:  WGPU.Buffer;
+    index_count:   u32;
 }
 
 Renderer :: struct {
