@@ -231,6 +231,7 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
     vertex_buffer_descriptor: WGPU.BufferDescriptor = {
         usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
         size  = WGPU.to_copy_buffer_alignment(size_of(type_of(VERTICES))),
+        // @Todo use mapped at creation?
     };
     mesh.vertex_buffer = WGPU.DeviceCreateBuffer(device, *vertex_buffer_descriptor);
     WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, VERTICES.data, vertex_buffer_descriptor.size);
@@ -238,6 +239,7 @@ create_triangle_mesh :: (device: WGPU.Device, queue: WGPU.Queue) -> Mesh { // @n
     index_buffer_descriptor: WGPU.BufferDescriptor = {
         usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Index,
         size = WGPU.to_copy_buffer_alignment(size_of(type_of(INDICES))),
+        // @Todo use mapped at creation?
     };
     mesh.index_buffer = WGPU.DeviceCreateBuffer(device, *index_buffer_descriptor);
     mesh.index_count = INDICES.count;
