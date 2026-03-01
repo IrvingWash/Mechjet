@@ -116,20 +116,7 @@ get_toolbox :: (handle: Renderer_Handle) -> WGPU_Toolbox { // @no_merge
 
 
 
-#scope_file
-
-Transforms :: struct {
-    matrices: Matrices;
-
-    bind_group_layout: WGPU.BindGroupLayout;
-    bind_group:        WGPU.BindGroup;
-    buffer:            WGPU.Buffer;
-
-    Matrices :: struct {
-        projection: Matrix4;
-        view:       Matrix4;
-    }
-}
+#scope_module
 
 Renderer :: struct {
     window:       Window.Window_Handle;
@@ -144,6 +131,23 @@ Renderer :: struct {
 
     // @Todo this should be a table of batches
     models: [..]Model; // @no_merge
+}
+
+
+
+#scope_file
+
+Transforms :: struct {
+    matrices: Matrices;
+
+    bind_group_layout: WGPU.BindGroupLayout;
+    bind_group:        WGPU.BindGroup;
+    buffer:            WGPU.Buffer;
+
+    Matrices :: struct {
+        projection: Matrix4;
+        view:       Matrix4;
+    }
 }
 
 do_forward_pass :: (

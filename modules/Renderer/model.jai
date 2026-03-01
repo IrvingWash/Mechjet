@@ -35,7 +35,11 @@ Vertex :: struct {
 
 // @Todo we are using GLTF here, but preferably the convertation should be done in the asset storage
 // @Todo optimize copying
-create_model :: (gltf_scene: GLTF.Scene, device: WGPU.Device, queue: WGPU.Queue) -> Model { // @no_merge
+create_model :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene) -> Model { // @no_merge
+    renderer := cast(*Renderer, handle);
+
+    using,only(device, queue) renderer.wgpu_toolbox;
+
     model: Model;
     array_resize(*model.nodes, gltf_scene.nodes.count);
     array_resize(*model.meshes, gltf_scene.meshes.count);

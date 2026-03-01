@@ -20,10 +20,14 @@ init :: (
         return false;
     }
 
+    engine.asset_storage = init_asset_storage();
+
     return true;
 }
 
 deinit :: () {
+    deinit_asset_storage(engine.asset_storage);
+
     Renderer.deinit_renderer(engine.renderer);
 
     deinit_input(engine.input_state);
@@ -53,11 +57,14 @@ end_drawing :: inline () {
     Renderer.end_drawing(engine.renderer);
 }
 
-// @Todo these should be called in the asset storage
-create_model  :: Renderer.create_model; // @no_merge
-destroy_model :: Renderer.destroy_model; // @no_merge
-get_toolbox  :: () -> Renderer.WGPU_Toolbox { // @no_merge
-    return Renderer.get_toolbox(engine.renderer);
+get_model_handle :: inline (path: string) -> ok: bool, handle: Model_Handle {
+    ok, handle := get_model_handle_from_storage(engine.asset_storage, engine.renderer, path);
+
+    return ok, handle;
+}
+
+resolve_model_handle :: inline (handle: Model_Handle) -> *Renderer.Model {
+    return resolve_model_handle_in_storage(engine.asset_storage, handle);
 }
 
 deg_to_rad :: (degrees: float) -> float {
@@ -74,6 +81,7 @@ Engine :: struct {
     window: Window.Window_Handle;
     input_state: Input_State_Handle;
     renderer: Renderer.Renderer_Handle;
+    asset_storage: Asset_Storage_Handle;
 }
 
 engine: Engine;
@@ -84,3 +92,4 @@ Window   :: #import "Window";
 Renderer :: #import "Renderer";
 
 #load "input.jai";
+#load "asset_storage.jai";

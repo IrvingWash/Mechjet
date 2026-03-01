@@ -7,7 +7,6 @@
 );
 #import "Math";
 Engine :: #import "Engine"()(DEBUG = DEBUG);
-GLTF :: #import "GLTF";
 
 Camera :: struct {
     position: Vector3;
@@ -30,14 +29,8 @@ main :: () {
     assert(ok);
     defer Engine.deinit();
 
-    gltf_converter := GLTF.create_converter();
-    error, triangle_scene := GLTF.load_scene(gltf_converter, "modules/GLTF/assets/triangle_glb/triangle.glb");
-    assert(error == "", "Failed to load triangle");
-    GLTF.destroy_converter(gltf_converter);
-    toolbox := Engine.get_toolbox();
-    triangle_model := Engine.create_model(triangle_scene, toolbox.device, toolbox.queue);
-    defer Engine.destroy_model(*triangle_model);
-    GLTF.release_scene(*triangle_scene);
+    ok =, triangle_model := Engine.get_model_handle("modules/GLTF/assets/triangle_glb/triangle.glb");
+    assert(ok);
 
     while !Engine.should_quit() {
         Engine.begin_frame();
@@ -51,7 +44,7 @@ main :: () {
             },
         );
 
-        Engine.draw_model(triangle_model);
+        Engine.draw_model(Engine.resolve_model_handle(triangle_model));
 
         Engine.end_drawing();
 
