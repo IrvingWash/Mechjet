@@ -170,7 +170,7 @@ do_forward_pass :: (
     for model: renderer.models {
         for node: model.nodes {
             if node.parent_index == -1 {
-                draw_node(render_pass_encoder, node, model);
+                draw_node(render_pass_encoder, renderer.wgpu_toolbox.queue, node, model, Matrix4_Identity); // @Todo this should be the entity transform, not identity
             }
         }
     }
@@ -178,11 +178,28 @@ do_forward_pass :: (
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
 }
 
-draw_node :: (render_pass_encoder: WGPU.RenderPassEncoder, node: Node, model: Model) {
+draw_node :: (render_pass_encoder: WGPU.RenderPassEncoder, queue: WGPU.Queue, node: Node, model: Model, parent_transform: Matrix4) {
+    transform := parent_transform * node.local_transform;
+
     if node.mesh_count > 0 {
         for node.first_mesh_index..(node.first_mesh_index + cast(s32, node.mesh_count) - 1) {
             mesh := model.meshes[it];
 
+            WGPU.QueueWriteBuffer(
+                queue,
+                mesh.instance_buffer,
+                0,
+                transpose(transform).floats.data,
+                WGPU.BufferGetSize(mesh.instance_buffer),
+            );
+
+            WGPU.RenderPassEncoderSetIndexBuffer(
+                render_pass_encoder,
+                mesh.index_buffer,
+                .Uint32,
+                0,
+                WGPU.BufferGetSize(mesh.index_buffer),
+            );
             WGPU.RenderPassEncoderSetVertexBuffer(
                 render_pass_encoder,
                 0,
@@ -190,12 +207,12 @@ draw_node :: (render_pass_encoder: WGPU.RenderPassEncoder, node: Node, model: Mo
                 0,
                 WGPU.BufferGetSize(mesh.vertex_buffer),
             );
-            WGPU.RenderPassEncoderSetIndexBuffer(
+            WGPU.RenderPassEncoderSetVertexBuffer(
                 render_pass_encoder,
-                mesh.index_buffer,
-                .Uint32,
+                1,
+                mesh.instance_buffer,
                 0,
-                WGPU.BufferGetSize(mesh.index_buffer),
+                WGPU.BufferGetSize(mesh.instance_buffer),
             );
 
             WGPU.RenderPassEncoderDrawIndexed(
@@ -207,7 +224,7 @@ draw_node :: (render_pass_encoder: WGPU.RenderPassEncoder, node: Node, model: Mo
     }
 
     for child_index: node.children_indices {
-        draw_node(render_pass_encoder, model.nodes[child_index], model);
+        draw_node(render_pass_encoder, queue, model.nodes[child_index], model, transform);
     }
 }
 
@@ -280,17 +297,20 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
     // Vertex buffer state
     // =========================================================================
 
-    vertex_attributes := WGPU.VertexAttribute.[
+    vertex_attributes :: WGPU.VertexAttribute.[
+        // Position
         WGPU.VertexAttribute.{
             format         = .Float32x3,
             offset         = 0,
             shaderLocation = 0,
         },
+        // Normal
         WGPU.VertexAttribute.{
             format         = .Float32x3,
             offset         = Vertex.NORMAL_OFFSET,
             shaderLocation = 1,
         },
+        // UV
         WGPU.VertexAttribute.{
             format         = .Float32x2,
             offset         = Vertex.UV_OFFSET,
@@ -305,11 +325,42 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
         attributes     = vertex_attributes.data,
     };
 
+    instance_attributes :: WGPU.VertexAttribute.[
+        // Model transform 4x4 matrix
+        WGPU.VertexAttribute.{
+            format         = .Float32x4,
+            offset         = 0,
+            shaderLocation = 3,
+        },
+        WGPU.VertexAttribute.{
+            format         = .Float32x4,
+            offset         = size_of(Vector4),
+            shaderLocation = 4,
+        },
+        WGPU.VertexAttribute.{
+            format         = .Float32x4,
+            offset         = size_of(Vector4) * 2,
+            shaderLocation = 5,
+        },
+        WGPU.VertexAttribute.{
+            format         = .Float32x4,
+            offset         = size_of(Vector4) * 3,
+            shaderLocation = 6,
+        },
+    ];
+
+    instance_buffer_layout: WGPU.VertexBufferLayout = {
+        stepMode       = .Instance,
+        arrayStride    = size_of(Instance),
+        attributeCount = instance_attributes.count,
+        attributes     = instance_attributes.data,
+    };
+
     vertex_state: WGPU.VertexState = {
         module      = shader_module,
         entryPoint  = WGPU.to_string_view("vs_main"),
-        bufferCount = 1,
-        buffers     = *vertex_buffer_layout,
+        bufferCount = 2,
+        buffers     = WGPU.VertexBufferLayout.[vertex_buffer_layout, instance_buffer_layout].data,
     };
 
     // =========================================================================
