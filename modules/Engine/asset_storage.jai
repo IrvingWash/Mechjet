@@ -30,7 +30,7 @@ deinit_asset_storage :: (handle: Asset_Storage_Handle) {
     table_reset(*storage.model_storage.map);
     deinit(*storage.model_storage.map);
 
-    storage.* = {};
+    free(storage);
 }
 
 get_model_handle_from_storage :: (handle: Asset_Storage_Handle, renderer: Renderer.Renderer_Handle, path: string) -> ok: bool, Model_Handle {

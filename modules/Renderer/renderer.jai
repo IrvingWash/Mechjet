@@ -70,9 +70,7 @@ start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
 
     update_transforms(renderer, camera);
 
-    // @Todo Maybe we should use a memory pool for this
-    // @Todo leaks for some reason!
-    array_reset_keeping_memory(*renderer.models); // @no_merge
+    array_reset_keeping_memory(*renderer.models);
 }
 
 draw_model :: (handle: Renderer_Handle, model: Model) {
