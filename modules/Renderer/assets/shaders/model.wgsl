@@ -17,7 +17,7 @@ struct InstanceInput {
 }
 
 struct VertexOutput {
-    @builtin(position) world_position: vec4f,
+    @builtin(position) clip_position: vec4f,
     @location(0)       normal:         vec3f,
     @location(1)       uv:             vec2f,
 }
@@ -36,7 +36,7 @@ fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOu
         instance_input.transform_column_4,
     );
 
-    output.world_position = uTransforms.projection * uTransforms.view * model_transform * vec4f(vertex_input.position, 1);
+    output.clip_position = uTransforms.projection * uTransforms.view * model_transform * vec4f(vertex_input.position, 1);
     output.normal   = vertex_input.normal;
     output.uv = vertex_input.uv;
 
