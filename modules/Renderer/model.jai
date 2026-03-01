@@ -84,6 +84,16 @@ destroy_model :: (model: *Model) {
     model.* = {};
 }
 
+create_mesh_instance_buffer :: (device: WGPU.Device, instance_count: u32) -> WGPU.Buffer {
+    buffer_descriptor: WGPU.BufferDescriptor = {
+        usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
+        size             = WGPU.to_copy_buffer_alignment(size_of(Instance) * instance_count),
+        mappedAtCreation = xx false,
+    };
+
+    return WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
+}
+
 
 
 #scope_file
@@ -131,12 +141,8 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
     // =========================================================================
     // Instance buffer
     // =========================================================================
-    instance_buffer_descriptor: WGPU.BufferDescriptor = {
-        usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
-        size             = WGPU.to_copy_buffer_alignment(size_of(Instance)),
-        mappedAtCreation = xx false,
-    };
-    mesh.instance_buffer = WGPU.DeviceCreateBuffer(device, *instance_buffer_descriptor);
+
+    mesh.instance_buffer = create_mesh_instance_buffer(device, 1);
 
     return mesh;
 }
