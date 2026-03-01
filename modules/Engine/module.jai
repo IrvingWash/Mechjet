@@ -56,8 +56,8 @@ start_drawing :: inline (camera: $T/interface Renderer.Render_Camera) {
     Renderer.start_drawing(engine.renderer, camera);
 }
 
-draw_model :: inline (model: Renderer.Model) {
-    Renderer.draw_model(engine.renderer, model);
+draw_model :: inline (model: Renderer.Model, transform: Matrix4) {
+    Renderer.draw_model(engine.renderer, model, transform);
 }
 
 // @Todo maybe have something like end_frame and put this there?

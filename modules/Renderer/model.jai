@@ -15,7 +15,6 @@ Node :: struct {
 
 Mesh :: struct {
     vertex_buffer:   WGPU.Buffer;
-    instance_buffer: WGPU.Buffer;
     index_buffer:    WGPU.Buffer;
     index_count:     u32;
 
@@ -35,7 +34,7 @@ Vertex :: struct {
 }
 
 Instance :: struct {
-    transform: Matrix4;
+    column_major_transform: Matrix4;
 }
 
 create_model_from_gltf_scene :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene) -> Model {
@@ -75,7 +74,6 @@ destroy_model :: (model: *Model) {
     array_free(model.nodes);
 
     for mesh: model.meshes {
-        WGPU.BufferRelease(mesh.instance_buffer);
         WGPU.BufferRelease(mesh.vertex_buffer);
         WGPU.BufferRelease(mesh.index_buffer);
     }
@@ -84,7 +82,7 @@ destroy_model :: (model: *Model) {
     model.* = {};
 }
 
-create_mesh_instance_buffer :: (device: WGPU.Device, instance_count: u32) -> WGPU.Buffer {
+create_instance_buffer :: (device: WGPU.Device, instance_count: u32) -> WGPU.Buffer {
     buffer_descriptor: WGPU.BufferDescriptor = {
         usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
         size             = WGPU.to_copy_buffer_alignment(size_of(Instance) * instance_count),
@@ -137,12 +135,6 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
     #assert Vertex.NORMAL_OFFSET   == GLTF.Vertex.NORMAL_OFFSET;
     #assert Vertex.UV_OFFSET       == GLTF.Vertex.UV_OFFSET;
     WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, gltf_mesh_data.vertices.data, WGPU.BufferGetSize(mesh.vertex_buffer));
-
-    // =========================================================================
-    // Instance buffer
-    // =========================================================================
-
-    mesh.instance_buffer = create_mesh_instance_buffer(device, 1);
 
     return mesh;
 }

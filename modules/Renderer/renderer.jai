@@ -48,7 +48,12 @@ init_renderer :: (
 deinit_renderer :: (handle: Renderer_Handle) {
     renderer := cast(*Renderer, handle);
 
-    array_free(renderer.models);
+    for batch: renderer.batches {
+        array_free(batch.instances);
+        WGPU.BufferRelease(batch.instance_buffer);
+    }
+    table_reset(*renderer.batches);
+    deinit(*renderer.batches);
 
     Window.remove_framebuffer_size_change_handler(renderer.window, handle_framebuffer_size_change);
 
@@ -70,13 +75,52 @@ start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
 
     update_transforms(renderer, camera);
 
-    array_reset_keeping_memory(*renderer.models);
+    for *batch: renderer.batches {
+        array_reset_keeping_memory(*batch.instances);
+    }
 }
 
-draw_model :: (handle: Renderer_Handle, model: Model) {
+draw_model :: (handle: Renderer_Handle, model: Model, transform: Matrix4) {
     renderer := cast(*Renderer, handle);
 
-    array_add(*renderer.models, model);
+    for node: model.nodes {
+        if node.parent_index == -1 {
+            add_node(renderer, node, model, transform);
+        }
+    }
+}
+
+// @no_merge @Todo move down
+add_node :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4) {
+    transform := parent_transform * node.local_transform;
+
+    if node.mesh_count > 0 {
+        for node.first_mesh_index..(cast(s64, node.first_mesh_index) + node.mesh_count - 1) {
+            mesh := model.meshes[it];
+
+            instance: Instance = {
+                column_major_transform = transpose(transform),
+            };
+
+            batch := table_find_pointer(*renderer.batches, xx mesh.vertex_buffer); // @no_merge @Todo figure out the key
+            if batch {
+                array_add(*batch.instances, instance);
+            } else {
+                new_batch: Batch = {
+                    mesh = mesh,
+                    instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, 1),
+                };
+
+                array_add(*new_batch.instances, instance);
+
+                table_set(*renderer.batches, xx mesh.vertex_buffer, new_batch); // @no merge @Todo figure out the key
+            }
+        }
+    }
+
+    for child_index: node.children_indices {
+        add_node(renderer, model.nodes[child_index], model, transform);
+    }
 }
 
 end_drawing :: (handle: Renderer_Handle) {
@@ -121,8 +165,13 @@ Renderer :: struct {
 
     model_render_pipeline: WGPU.RenderPipeline;
 
-    // @Todo this should be a table of batches
-    models: [..]Model; // @no_merge
+    batches: Table(u64, Batch);
+}
+
+Batch :: struct {
+    mesh: Mesh;
+    instances: [..]Instance;
+    instance_buffer: WGPU.Buffer;
 }
 
 
@@ -167,65 +216,60 @@ do_forward_pass :: (
 
     WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms.bind_group, 0, null);
 
-    for model: renderer.models {
-        for node: model.nodes {
-            if node.parent_index == -1 {
-                draw_node(render_pass_encoder, renderer.wgpu_toolbox.queue, node, model, Matrix4_Identity); // @Todo this should be the entity transform, not identity
-            }
+    for *batch: renderer.batches {
+        if batch.instances.count == 0 {
+            continue;
         }
+
+        batch_size := batch.instances.count * size_of(Instance);
+
+        if batch_size > xx WGPU.BufferGetSize(batch.instance_buffer) {
+            WGPU.BufferRelease(batch.instance_buffer);
+
+            batch.instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, xx batch.instances.count); // @Todo overallocate
+        }
+
+        WGPU.QueueWriteBuffer(
+            renderer.wgpu_toolbox.queue,
+            batch.instance_buffer,
+            0,
+            batch.instances.data,
+            WGPU.BufferGetSize(batch.instance_buffer), // @Todo pass only the actual occupied amount
+        );
+
+        WGPU.RenderPassEncoderSetIndexBuffer(
+            render_pass_encoder,
+            batch.mesh.index_buffer,
+            .Uint32,
+            0,
+            WGPU.BufferGetSize(batch.mesh.index_buffer),
+        );
+        WGPU.RenderPassEncoderSetVertexBuffer(
+            render_pass_encoder,
+            0,
+            batch.mesh.vertex_buffer,
+            0,
+            WGPU.BufferGetSize(batch.mesh.vertex_buffer),
+        );
+        WGPU.RenderPassEncoderSetVertexBuffer(
+            render_pass_encoder,
+            1,
+            batch.instance_buffer,
+            0,
+            WGPU.BufferGetSize(batch.instance_buffer), // @Todo pass only the actual occupied size
+        );
+
+        WGPU.RenderPassEncoderDrawIndexed(
+            render_pass_encoder,
+            batch.mesh.index_count,
+            xx batch.instances.count,
+            0,
+            0,
+            0,
+        );
     }
 
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
-}
-
-draw_node :: (render_pass_encoder: WGPU.RenderPassEncoder, queue: WGPU.Queue, node: Node, model: Model, parent_transform: Matrix4) {
-    transform := parent_transform * node.local_transform;
-
-    if node.mesh_count > 0 {
-        for node.first_mesh_index..(node.first_mesh_index + cast(s32, node.mesh_count) - 1) {
-            mesh := model.meshes[it];
-
-            WGPU.QueueWriteBuffer(
-                queue,
-                mesh.instance_buffer,
-                0,
-                transpose(transform).floats.data,
-                WGPU.BufferGetSize(mesh.instance_buffer),
-            );
-
-            WGPU.RenderPassEncoderSetIndexBuffer(
-                render_pass_encoder,
-                mesh.index_buffer,
-                .Uint32,
-                0,
-                WGPU.BufferGetSize(mesh.index_buffer),
-            );
-            WGPU.RenderPassEncoderSetVertexBuffer(
-                render_pass_encoder,
-                0,
-                mesh.vertex_buffer,
-                0,
-                WGPU.BufferGetSize(mesh.vertex_buffer),
-            );
-            WGPU.RenderPassEncoderSetVertexBuffer(
-                render_pass_encoder,
-                1,
-                mesh.instance_buffer,
-                0,
-                WGPU.BufferGetSize(mesh.instance_buffer),
-            );
-
-            WGPU.RenderPassEncoderDrawIndexed(
-                render_pass_encoder,
-                mesh.index_count,
-                1, 0, 0, 0,
-            );
-        }
-    }
-
-    for child_index: node.children_indices {
-        draw_node(render_pass_encoder, queue, model.nodes[child_index], model, transform);
-    }
 }
 
 create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, WGPU.BindGroup, WGPU.Buffer {
@@ -297,6 +341,7 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
     // Vertex buffer state
     // =========================================================================
 
+    // @Todo move this into model.jai
     vertex_attributes :: WGPU.VertexAttribute.[
         // Position
         WGPU.VertexAttribute.{
@@ -477,6 +522,7 @@ handle_framebuffer_size_change :: (width: u32, height: u32, data: *void) {
 #import "Basic";
 #import "Math";
 #import "String";
+#import "Hash_Table";
 WGPU :: #import "WGPU";
 Window :: #import "Window";
 #load "wgpu_helpers.jai";
