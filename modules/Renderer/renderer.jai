@@ -179,7 +179,7 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
             } else {
                 new_batch: Batch = {
                     mesh = mesh,
-                    instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, 8),
+                    instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, 1),
                 };
 
                 array_add(*new_batch.instances, instance);
