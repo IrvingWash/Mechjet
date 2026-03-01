@@ -29,7 +29,7 @@ main :: () {
     assert(ok);
     defer Engine.deinit();
 
-    ok =, triangle_model := Engine.get_model_handle("modules/GLTF/assets/triangle_glb/triangle.glb");
+    ok =, model_handle := Engine.get_model_handle("modules/GLTF/assets/lantern_glb/lantern.glb");
     assert(ok);
 
     while !Engine.should_quit() {
@@ -37,14 +37,15 @@ main :: () {
 
         Engine.start_drawing(
             Camera.{
-                position = { 0, 3, 0 },
+                position = { 0, 10, 25 },
+                target   = { 0, 0, 0, },
                 fov_radians = Engine.deg_to_rad(60),
                 z_near = 0.1,
                 z_far = 100,
             },
         );
 
-        Engine.draw_model(Engine.resolve_model_handle(triangle_model));
+        Engine.draw_model(Engine.resolve_model_handle(model_handle));
 
         Engine.end_drawing();
 

@@ -70,8 +70,9 @@ start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
 
     update_transforms(renderer, camera);
 
-    // @Todo array_reset_keeping memory?
-    array_reset(*renderer.models); // @no_merge
+    // @Todo Maybe we should use a memory pool for this
+    // @Todo leaks for some reason!
+    array_reset_keeping_memory(*renderer.models); // @no_merge
 }
 
 draw_model :: (handle: Renderer_Handle, model: Model) {
@@ -168,27 +169,48 @@ do_forward_pass :: (
 
     WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms.bind_group, 0, null);
 
-    // @Todo remove the hardcode!
-    for model: renderer.models { // @no_merge
-        WGPU.RenderPassEncoderSetVertexBuffer(
-            render_pass_encoder,
-            0,
-            model.meshes[0].vertex_buffer,
-            0,
-            WGPU.BufferGetSize(model.meshes[0].vertex_buffer),
-        );
-        WGPU.RenderPassEncoderSetIndexBuffer(
-            render_pass_encoder,
-            model.meshes[0].index_buffer,
-            .Uint32,
-            0,
-            WGPU.BufferGetSize(model.meshes[0].index_buffer),
-        );
-
-        WGPU.RenderPassEncoderDrawIndexed(render_pass_encoder, model.meshes[0].index_count, 1, 0, 0, 0);
+    for model: renderer.models {
+        for node: model.nodes {
+            if node.parent_index == -1 {
+                draw_node(render_pass_encoder, node, model);
+            }
+        }
     }
 
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
+}
+
+draw_node :: (render_pass_encoder: WGPU.RenderPassEncoder, node: Node, model: Model) {
+    if node.mesh_count > 0 {
+        for node.first_mesh_index..(node.first_mesh_index + cast(s32, node.mesh_count) - 1) {
+            mesh := model.meshes[it];
+
+            WGPU.RenderPassEncoderSetVertexBuffer(
+                render_pass_encoder,
+                0,
+                mesh.vertex_buffer,
+                0,
+                WGPU.BufferGetSize(mesh.vertex_buffer),
+            );
+            WGPU.RenderPassEncoderSetIndexBuffer(
+                render_pass_encoder,
+                mesh.index_buffer,
+                .Uint32,
+                0,
+                WGPU.BufferGetSize(mesh.index_buffer),
+            );
+
+            WGPU.RenderPassEncoderDrawIndexed(
+                render_pass_encoder,
+                mesh.index_count,
+                1, 0, 0, 0,
+            );
+        }
+    }
+
+    for child_index: node.children_indices {
+        draw_node(render_pass_encoder, model.nodes[child_index], model);
+    }
 }
 
 create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, WGPU.BindGroup, WGPU.Buffer {
