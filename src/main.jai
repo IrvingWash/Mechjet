@@ -33,13 +33,17 @@ main :: () {
     assert(ok);
 
     ok =, mech_handle := Engine.get_model_handle("modules/GLTF/assets/mech_glb/mech.glb");
+    assert(ok);
+
+    ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree_glb/scene.glb");
+    assert(ok);
 
     while !Engine.should_quit() {
         Engine.begin_frame();
 
         Engine.start_drawing(
             Camera.{
-                position = { 0, 50, 50 },
+                position = { 0, 30, 30 },
                 target   = { 0, 0, 0, },
                 fov_radians = Engine.deg_to_rad(60),
                 z_near = 0.1,
@@ -51,6 +55,8 @@ main :: () {
         Engine.draw_model(Engine.resolve_model_handle(lamp_handle), make_translation_matrix4({ 10, 0, 0 }));
         Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({-10, 0, 0 }));
         Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({-10, 10, 0 }));
+        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({-10, -10, 0 }));
+        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({-5, -5, 0 }));
 
         Engine.end_drawing();
 

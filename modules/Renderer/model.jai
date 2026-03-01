@@ -33,10 +33,6 @@ Vertex :: struct {
     UV_OFFSET       :: size_of(Vector3) * 2;
 }
 
-Instance :: struct {
-    column_major_transform: Matrix4;
-}
-
 create_model_from_gltf_scene :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene) -> Model {
     renderer := cast(*Renderer, handle);
 
@@ -80,16 +76,6 @@ destroy_model :: (model: *Model) {
     array_free(model.meshes);
 
     model.* = {};
-}
-
-create_instance_buffer :: (device: WGPU.Device, instance_count: u32) -> WGPU.Buffer {
-    buffer_descriptor: WGPU.BufferDescriptor = {
-        usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
-        size             = WGPU.to_copy_buffer_alignment(size_of(Instance) * instance_count),
-        mappedAtCreation = xx false,
-    };
-
-    return WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
 }
 
 

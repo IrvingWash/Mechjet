@@ -85,41 +85,8 @@ draw_model :: (handle: Renderer_Handle, model: Model, transform: Matrix4) {
 
     for node: model.nodes {
         if node.parent_index == -1 {
-            add_node(renderer, node, model, transform);
+            schedule_node_for_drawing(renderer, node, model, transform);
         }
-    }
-}
-
-// @no_merge @Todo move down
-add_node :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4) {
-    transform := parent_transform * node.local_transform;
-
-    if node.mesh_count > 0 {
-        for node.first_mesh_index..(cast(s64, node.first_mesh_index) + node.mesh_count - 1) {
-            mesh := model.meshes[it];
-
-            instance: Instance = {
-                column_major_transform = transpose(transform),
-            };
-
-            batch := table_find_pointer(*renderer.batches, xx mesh.vertex_buffer); // @no_merge @Todo figure out the key
-            if batch {
-                array_add(*batch.instances, instance);
-            } else {
-                new_batch: Batch = {
-                    mesh = mesh,
-                    instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, 1),
-                };
-
-                array_add(*new_batch.instances, instance);
-
-                table_set(*renderer.batches, xx mesh.vertex_buffer, new_batch); // @no merge @Todo figure out the key
-            }
-        }
-    }
-
-    for child_index: node.children_indices {
-        add_node(renderer, model.nodes[child_index], model, transform);
     }
 }
 
@@ -168,15 +135,19 @@ Renderer :: struct {
     batches: Table(u64, Batch);
 }
 
+
+
+#scope_file
+
 Batch :: struct {
     mesh: Mesh;
     instances: [..]Instance;
     instance_buffer: WGPU.Buffer;
 }
 
-
-
-#scope_file
+Instance :: struct {
+    column_major_transform: Matrix4;
+}
 
 Transforms :: struct {
     matrices: Matrices;
@@ -190,6 +161,39 @@ Transforms :: struct {
         view:       Matrix4;
     }
 }
+
+schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4) {
+    transform := parent_transform * node.local_transform;
+
+    if node.mesh_count > 0 {
+        for node.first_mesh_index..(cast(s64, node.first_mesh_index) + node.mesh_count - 1) {
+            mesh := model.meshes[it];
+
+            instance: Instance = {
+                column_major_transform = transpose(transform),
+            };
+
+            batch := table_find_pointer(*renderer.batches, xx mesh.vertex_buffer); // @Todo figure out the key
+            if batch {
+                array_add(*batch.instances, instance);
+            } else {
+                new_batch: Batch = {
+                    mesh = mesh,
+                    instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, 8),
+                };
+
+                array_add(*new_batch.instances, instance);
+
+                table_set(*renderer.batches, xx mesh.vertex_buffer, new_batch); // @Todo figure out the key
+            }
+        }
+    }
+
+    for child_index: node.children_indices {
+        schedule_node_for_drawing(renderer, model.nodes[child_index], model, transform);
+    }
+}
+
 
 do_forward_pass :: (
     renderer:        *Renderer,
@@ -223,10 +227,13 @@ do_forward_pass :: (
 
         batch_size := batch.instances.count * size_of(Instance);
 
-        if batch_size > xx WGPU.BufferGetSize(batch.instance_buffer) {
+        if cast(u64, batch_size) > WGPU.BufferGetSize(batch.instance_buffer) {
             WGPU.BufferRelease(batch.instance_buffer);
 
-            batch.instance_buffer = create_instance_buffer(renderer.wgpu_toolbox.device, xx batch.instances.count); // @Todo overallocate
+            batch.instance_buffer = create_instance_buffer(
+                renderer.wgpu_toolbox.device,
+                cast(u32, batch.instances.count * 2),
+            );
         }
 
         WGPU.QueueWriteBuffer(
@@ -234,7 +241,7 @@ do_forward_pass :: (
             batch.instance_buffer,
             0,
             batch.instances.data,
-            WGPU.BufferGetSize(batch.instance_buffer), // @Todo pass only the actual occupied amount
+            cast(u64, batch_size),
         );
 
         WGPU.RenderPassEncoderSetIndexBuffer(
@@ -256,13 +263,13 @@ do_forward_pass :: (
             1,
             batch.instance_buffer,
             0,
-            WGPU.BufferGetSize(batch.instance_buffer), // @Todo pass only the actual occupied size
+            cast(u64, batch_size),
         );
 
         WGPU.RenderPassEncoderDrawIndexed(
             render_pass_encoder,
             batch.mesh.index_count,
-            xx batch.instances.count,
+            cast(u32, batch.instances.count),
             0,
             0,
             0,
@@ -270,6 +277,16 @@ do_forward_pass :: (
     }
 
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
+}
+
+create_instance_buffer :: (device: WGPU.Device, instance_count: u32) -> WGPU.Buffer {
+    buffer_descriptor: WGPU.BufferDescriptor = {
+        usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
+        size             = WGPU.to_copy_buffer_alignment(size_of(Instance) * instance_count),
+        mappedAtCreation = xx false,
+    };
+
+    return WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
 }
 
 create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, WGPU.BindGroup, WGPU.Buffer {
@@ -321,7 +338,11 @@ create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, W
     return layout, group, uniform_buffer;
 }
 
-release_transforms_bind_group :: (layout: WGPU.BindGroupLayout, group: WGPU.BindGroup, buffer: WGPU.Buffer) {
+release_transforms_bind_group :: (
+    layout: WGPU.BindGroupLayout,
+    group: WGPU.BindGroup,
+    buffer: WGPU.Buffer,
+) {
     WGPU.BufferRelease(buffer);
 
     WGPU.BindGroupRelease(group);
@@ -329,7 +350,11 @@ release_transforms_bind_group :: (layout: WGPU.BindGroupLayout, group: WGPU.Bind
     WGPU.BindGroupLayoutRelease(layout);
 }
 
-create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.TextureFormat, transforms_bind_group_layout: WGPU.BindGroupLayout) -> WGPU.RenderPipeline {
+create_model_render_pipeline :: (
+    device: WGPU.Device,
+    texture_format: WGPU.TextureFormat,
+    transforms_bind_group_layout: WGPU.BindGroupLayout,
+) -> WGPU.RenderPipeline {
     ok, shader_module := create_wgpu_shader_module(
         device,
         path_join(#filepath, "assets/shaders/model.wgsl",, temp),
@@ -341,7 +366,6 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
     // Vertex buffer state
     // =========================================================================
 
-    // @Todo move this into model.jai
     vertex_attributes :: WGPU.VertexAttribute.[
         // Position
         WGPU.VertexAttribute.{
