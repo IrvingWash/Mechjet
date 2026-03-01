@@ -425,11 +425,13 @@ create_model_render_pipeline :: (
         attributes     = instance_attributes.data,
     };
 
+    vertex_state_buffers := WGPU.VertexBufferLayout.[vertex_buffer_layout, instance_buffer_layout];
+
     vertex_state: WGPU.VertexState = {
         module      = shader_module,
         entryPoint  = WGPU.to_string_view("vs_main"),
-        bufferCount = 2,
-        buffers     = WGPU.VertexBufferLayout.[vertex_buffer_layout, instance_buffer_layout].data,
+        bufferCount = vertex_state_buffers.count,
+        buffers     = vertex_state_buffers.data,
     };
 
     // =========================================================================
