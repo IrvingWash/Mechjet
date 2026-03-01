@@ -1,5 +1,9 @@
 #module_parameters()(DEBUG := false);
 
+// =============================================================================
+// Engine lifecycle
+// =============================================================================
+
 init :: (
     title: string,
     window_width: u32,
@@ -43,6 +47,10 @@ should_quit :: inline () -> bool {
     return Window.should_window_close(engine.window);
 }
 
+// =============================================================================
+// Rendering
+// =============================================================================
+
 // @Todo maybe call this in begin frame?
 start_drawing :: inline (camera: $T/interface Renderer.Render_Camera) {
     Renderer.start_drawing(engine.renderer, camera);
@@ -57,6 +65,10 @@ end_drawing :: inline () {
     Renderer.end_drawing(engine.renderer);
 }
 
+// =============================================================================
+// Assets
+// =============================================================================
+
 get_model_handle :: inline (path: string) -> ok: bool, handle: Model_Handle {
     ok, handle := get_model_handle_from_storage(engine.asset_storage, engine.renderer, path);
 
@@ -66,6 +78,10 @@ get_model_handle :: inline (path: string) -> ok: bool, handle: Model_Handle {
 resolve_model_handle :: inline (handle: Model_Handle) -> *Renderer.Model {
     return resolve_model_handle_in_storage(engine.asset_storage, handle);
 }
+
+// =============================================================================
+// Math
+// =============================================================================
 
 deg_to_rad :: (degrees: float) -> float {
     return degrees * PI_BY_HALF_CIRCLE;

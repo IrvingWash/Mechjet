@@ -107,13 +107,6 @@ end_drawing :: (handle: Renderer_Handle) {
     WGPU.SurfacePresent(surface);
 }
 
-// @Todo we should try to handle this better
-get_toolbox :: (handle: Renderer_Handle) -> WGPU_Toolbox { // @no_merge
-    renderer := cast(*Renderer, handle);
-
-    return renderer.wgpu_toolbox;
-}
-
 
 
 #scope_module

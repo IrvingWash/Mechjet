@@ -61,7 +61,7 @@ get_model_handle_from_storage :: (handle: Asset_Storage_Handle, renderer: Render
         return false, -1;
     }
 
-    model := Renderer.create_model(renderer, gltf_scene);
+    model := Renderer.create_model_from_gltf_scene(renderer, gltf_scene);
 
     GLTF.release_scene(*gltf_scene);
 

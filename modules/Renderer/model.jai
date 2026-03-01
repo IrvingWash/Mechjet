@@ -33,9 +33,7 @@ Vertex :: struct {
     UV_OFFSET       :: size_of(Vector3) * 2;
 }
 
-// @Todo we are using GLTF here, but preferably the convertation should be done in the asset storage
-// @Todo optimize copying
-create_model :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene) -> Model { // @no_merge
+create_model_from_gltf_scene :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene) -> Model {
     renderer := cast(*Renderer, handle);
 
     using,only(device, queue) renderer.wgpu_toolbox;
@@ -111,4 +109,4 @@ create_mesh :: (mesh_data: GLTF.Mesh, device: WGPU.Device, queue: WGPU.Queue) ->
 }
 
 WGPU :: #import "WGPU";
-GLTF :: #import "GLTF"; // @no_merge
+GLTF :: #import "GLTF";
