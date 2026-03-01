@@ -227,7 +227,7 @@ do_forward_pass :: (
 
         batch_size := batch.instances.count * size_of(Instance);
 
-        if cast(u64, batch_size) > WGPU.BufferGetSize(batch.instance_buffer) {
+        if cast(u64, batch_size) > WGPU.BufferGetSize(batch.instance_buffer) { // @no_merge @Todo avoid calling BufferGetSize
             WGPU.BufferRelease(batch.instance_buffer);
 
             batch.instance_buffer = create_instance_buffer(
@@ -249,14 +249,14 @@ do_forward_pass :: (
             batch.mesh.index_buffer,
             .Uint32,
             0,
-            WGPU.BufferGetSize(batch.mesh.index_buffer),
+            WGPU.BufferGetSize(batch.mesh.index_buffer), // @no_merge @Todo avoid calling BufferGetSize
         );
         WGPU.RenderPassEncoderSetVertexBuffer(
             render_pass_encoder,
             0,
             batch.mesh.vertex_buffer,
             0,
-            WGPU.BufferGetSize(batch.mesh.vertex_buffer),
+            WGPU.BufferGetSize(batch.mesh.vertex_buffer), // @no_merge @Todo avoid calling BufferGetSize
         );
         WGPU.RenderPassEncoderSetVertexBuffer(
             render_pass_encoder,
