@@ -75,7 +75,7 @@ get_model_handle :: inline (path: string) -> ok: bool, handle: Model_Handle {
     return ok, handle;
 }
 
-resolve_model_handle :: inline (handle: Model_Handle) -> *Renderer.Model {
+resolve_model_handle :: inline (handle: Model_Handle) -> Renderer.Model {
     return resolve_model_handle_in_storage(engine.asset_storage, handle);
 }
 

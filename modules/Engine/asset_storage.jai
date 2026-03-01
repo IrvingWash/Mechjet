@@ -74,10 +74,10 @@ get_model_handle_from_storage :: (handle: Asset_Storage_Handle, renderer: Render
     return true, handle;
 }
 
-resolve_model_handle_in_storage :: (storage_handle: Asset_Storage_Handle, model_handle: Model_Handle) -> *Renderer.Model {
+resolve_model_handle_in_storage :: (storage_handle: Asset_Storage_Handle, model_handle: Model_Handle) -> Renderer.Model {
     storage := cast(*Asset_Storage, storage_handle);
 
-    return *storage.model_storage.models[model_handle];
+    return storage.model_storage.models[model_handle];
 }
 
 

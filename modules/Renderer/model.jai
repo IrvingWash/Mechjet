@@ -87,6 +87,10 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
 
     // mesh.material = @Todo!
 
+    // =========================================================================
+    // Index buffer
+    // =========================================================================
+
     mesh.index_count = cast(u32, gltf_mesh_data.indices.count);
 
     index_buffer_descriptor: WGPU.BufferDescriptor = {
@@ -99,6 +103,10 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
     // Asserting here as we are passing the gltf indices directly to the GPU buffer.
     #assert type_of(gltf_mesh_data.indices) == [..]u32;
     WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, gltf_mesh_data.indices.data, WGPU.BufferGetSize(mesh.index_buffer));
+
+    // =========================================================================
+    // Vertex buffer
+    // =========================================================================
 
     vertex_buffer_descriptor: WGPU.BufferDescriptor = {
         usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
