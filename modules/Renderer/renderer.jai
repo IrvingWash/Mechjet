@@ -249,14 +249,14 @@ do_forward_pass :: (
             batch.mesh.index_buffer,
             .Uint32,
             0,
-            WGPU.BufferGetSize(batch.mesh.index_buffer), // @no_merge @Todo avoid calling BufferGetSize
+            WGPU.BufferGetSize(batch.mesh.index_buffer), // @no_merge @Todo avoid calling BufferGetSize pass the actual amount
         );
         WGPU.RenderPassEncoderSetVertexBuffer(
             render_pass_encoder,
             0,
             batch.mesh.vertex_buffer,
             0,
-            WGPU.BufferGetSize(batch.mesh.vertex_buffer), // @no_merge @Todo avoid calling BufferGetSize
+            WGPU.BufferGetSize(batch.mesh.vertex_buffer), // @no_merge @Todo avoid calling BufferGetSize pass the actual amount
         );
         WGPU.RenderPassEncoderSetVertexBuffer(
             render_pass_encoder,

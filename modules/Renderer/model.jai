@@ -102,7 +102,7 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
 
     // Asserting here as we are passing the gltf indices directly to the GPU buffer.
     #assert type_of(gltf_mesh_data.indices) == [..]u32;
-    WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, gltf_mesh_data.indices.data, WGPU.BufferGetSize(mesh.index_buffer));
+    WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, gltf_mesh_data.indices.data, WGPU.BufferGetSize(mesh.index_buffer)); // @no_merge @Todo pass the actual amount
 
     // =========================================================================
     // Vertex buffer
@@ -120,7 +120,7 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
     #assert Vertex.POSITION_OFFSET == GLTF.Vertex.POSITION_OFFSET;
     #assert Vertex.NORMAL_OFFSET   == GLTF.Vertex.NORMAL_OFFSET;
     #assert Vertex.UV_OFFSET       == GLTF.Vertex.UV_OFFSET;
-    WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, gltf_mesh_data.vertices.data, WGPU.BufferGetSize(mesh.vertex_buffer));
+    WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, gltf_mesh_data.vertices.data, WGPU.BufferGetSize(mesh.vertex_buffer)); // @no_merge @Todo pass the actual amount
 
     return mesh;
 }
