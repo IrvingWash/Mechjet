@@ -276,6 +276,10 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
     assert(ok, "Failed to load default model shader"); // @Todo handle more gracefully
     defer WGPU.ShaderModuleRelease(shader_module);
 
+    // =========================================================================
+    // Vertex buffer state
+    // =========================================================================
+
     vertex_attributes := WGPU.VertexAttribute.[
         WGPU.VertexAttribute.{
             format         = .Float32x3,
@@ -308,6 +312,10 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
         buffers     = *vertex_buffer_layout,
     };
 
+    // =========================================================================
+    // Primitive state
+    // =========================================================================
+
     primitive_state: WGPU.PrimitiveState = {
         topology         = .TriangleList,
         stripIndexFormat = .Undefined,
@@ -315,10 +323,18 @@ create_model_render_pipeline :: (device: WGPU.Device, texture_format: WGPU.Textu
         cullMode         = .Back,
     };
 
+    // =========================================================================
+    // Multisample state
+    // =========================================================================
+
     multisample_state: WGPU.MultisampleState = {
         count = 1,
         mask  = ~cast(u32, 0),
     };
+
+    // =========================================================================
+    // Fragment state
+    // =========================================================================
 
     blend_state: WGPU.BlendState = {
         color = {
