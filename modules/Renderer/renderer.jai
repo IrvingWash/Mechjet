@@ -26,14 +26,19 @@ init_renderer :: (
         return false, null;
     }
 
-    renderer.transforms.bind_group_layout,
-    renderer.transforms.bind_group,
-    renderer.transforms.buffer = create_transforms_bind_group(renderer.wgpu_toolbox.device);
+    WGPU.DeviceGetLimits(renderer.wgpu_toolbox.device, *renderer.limits);
+
+    renderer.transforms_uniform = create_transforms_uniform(renderer.wgpu_toolbox.device);
+
+    renderer.material_uniform = create_material_uniform(renderer.wgpu_toolbox.device, renderer.limits, 1);
 
     renderer.model_render_pipeline = create_model_render_pipeline(
         renderer.wgpu_toolbox.device,
         renderer.wgpu_toolbox.surface_configuration.format,
-        renderer.transforms.bind_group_layout,
+        .[
+            renderer.transforms_uniform.bind_group_layout,
+            renderer.material_uniform.bind_group_layout,
+        ],
     );
 
     Window.add_framebuffer_size_change_handler(
@@ -59,11 +64,9 @@ deinit_renderer :: (handle: Renderer_Handle) {
 
     WGPU.RenderPipelineRelease(renderer.model_render_pipeline);
 
-    release_transforms_bind_group(
-        renderer.transforms.bind_group_layout,
-        renderer.transforms.bind_group,
-        renderer.transforms.buffer,
-    );
+    release_uniform(renderer.material_uniform);
+
+    release_uniform(renderer.transforms_uniform);
 
     deinit_wgpu(renderer.wgpu_toolbox);
 
@@ -107,7 +110,7 @@ end_drawing :: (handle: Renderer_Handle) {
     command_encoder := WGPU.DeviceCreateCommandEncoder(device, null);
     defer WGPU.CommandEncoderRelease(command_encoder);
 
-    do_forward_pass(renderer, command_encoder, surface_texture_view);
+    do_main_pass(renderer, command_encoder, surface_texture_view);
 
     command_buffer := WGPU.CommandEncoderFinish(command_encoder, null);
     defer WGPU.CommandBufferRelease(command_buffer);
@@ -127,10 +130,14 @@ Renderer :: struct {
     clear_color:  Vector4;
 
     wgpu_toolbox: WGPU_Toolbox;
+    limits:       WGPU.Limits;
 
     transforms: Transforms;
 
     model_render_pipeline: WGPU.RenderPipeline;
+
+    transforms_uniform:    Uniform;
+    material_uniform:      Uniform;
 
     batches: Table(u64, Batch);
 }
@@ -150,16 +157,14 @@ Instance :: struct {
 }
 
 Transforms :: struct {
-    matrices: Matrices;
+    projection: Matrix4;
+    view:       Matrix4;
+}
 
+Uniform :: struct {
     bind_group_layout: WGPU.BindGroupLayout;
     bind_group:        WGPU.BindGroup;
     buffer:            WGPU.Buffer;
-
-    Matrices :: struct {
-        projection: Matrix4;
-        view:       Matrix4;
-    }
 }
 
 schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4) {
@@ -195,7 +200,7 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
 }
 
 
-do_forward_pass :: (
+do_main_pass :: (
     renderer:        *Renderer,
     command_encoder: WGPU.CommandEncoder,
     texture_view:    WGPU.TextureView,
@@ -218,7 +223,23 @@ do_forward_pass :: (
 
     WGPU.RenderPassEncoderSetPipeline(render_pass_encoder, renderer.model_render_pipeline);
 
-    WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms.bind_group, 0, null);
+    WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms_uniform.bind_group, 0, null);
+
+    current_material_bind_group_offset: u32;
+    material_bind_group_offset_step := to_min_uniform_buffer_offset_alignment(renderer.limits, size_of(Material));
+
+    if (
+        (renderer.batches.count * material_bind_group_offset_step)
+            > cast(s64, WGPU.BufferGetSize(renderer.material_uniform.buffer))
+    ) {
+        release_uniform(renderer.material_uniform);
+
+        renderer.material_uniform = create_material_uniform(
+            renderer.wgpu_toolbox.device,
+            renderer.limits,
+            cast(u32, renderer.batches.count * 1.5), // Overallocate 1.5x
+        );
+    }
 
     for *batch: renderer.batches {
         if batch.instances.count == 0 {
@@ -235,6 +256,16 @@ do_forward_pass :: (
                 cast(u32, batch.instances.count * 1.5), // Overallocate 1.5x.
             );
         }
+
+        WGPU.QueueWriteBuffer(
+            renderer.wgpu_toolbox.queue,
+            renderer.material_uniform.buffer,
+            current_material_bind_group_offset,
+            *batch.mesh.material,
+            size_of(Material),
+        );
+
+        WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 1, renderer.material_uniform.bind_group, 1, *current_material_bind_group_offset);
 
         WGPU.QueueWriteBuffer(
             renderer.wgpu_toolbox.queue,
@@ -274,6 +305,8 @@ do_forward_pass :: (
             0,
             0,
         );
+
+        current_material_bind_group_offset += material_bind_group_offset_step;
     }
 
     WGPU.RenderPassEncoderEnd(render_pass_encoder);
@@ -289,71 +322,130 @@ create_instance_buffer :: (device: WGPU.Device, instance_count: u32) -> WGPU.Buf
     return WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
 }
 
-create_transforms_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, WGPU.BindGroup, WGPU.Buffer {
-    // Bind group layout
-
-    layout_entry: WGPU.BindGroupLayoutEntry = {
-        binding    = 0,
-        visibility = WGPU.WGPUShaderStage_Vertex,
-        buffer     = WGPU.BufferBindingLayout.{
-            type             = .Uniform,
-            minBindingSize   = size_of(Transforms.Matrices),
-            hasDynamicOffset = xx false,
-        },
-    };
-
-    layout_descriptor: WGPU.BindGroupLayoutDescriptor = {
-        entryCount = 1,
-        entries    = *layout_entry,
-    };
-
-    layout := WGPU.DeviceCreateBindGroupLayout(device, *layout_descriptor);
-
-    // Buffer
-
-    uniform_buffer_descriptor: WGPU.BufferDescriptor = {
-        usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
-        size  = WGPU.to_copy_buffer_alignment(size_of(Transforms.Matrices)),
-    };
-
-    uniform_buffer := WGPU.DeviceCreateBuffer(device, *uniform_buffer_descriptor);
-
-    // Bind group
-
-    entry: WGPU.BindGroupEntry = {
-        binding = 0,
-        buffer = uniform_buffer,
-        offset = 0,
-        size = size_of(Transforms.Matrices),
-    };
-
-    group_descriptor: WGPU.BindGroupDescriptor = {
-        layout     = layout,
-        entryCount = 1,
-        entries    = *entry,
-    };
-
-    group := WGPU.DeviceCreateBindGroup(device, *group_descriptor);
-
-    return layout, group, uniform_buffer;
+to_min_uniform_buffer_offset_alignment :: (limits: WGPU.Limits, size: u32) -> u32 {
+    return (size + (limits.minUniformBufferOffsetAlignment - 1)) & ~(limits.minUniformBufferOffsetAlignment - 1);
 }
 
-release_transforms_bind_group :: (
-    layout: WGPU.BindGroupLayout,
-    group: WGPU.BindGroup,
-    buffer: WGPU.Buffer,
-) {
-    WGPU.BufferRelease(buffer);
+create_transforms_uniform :: (device: WGPU.Device) -> Uniform {
+    uniform: Uniform;
 
-    WGPU.BindGroupRelease(group);
+    { // Bind group layout
+        layout_entry: WGPU.BindGroupLayoutEntry = {
+            binding    = 0,
+            visibility = WGPU.WGPUShaderStage_Vertex,
+            buffer     = WGPU.BufferBindingLayout.{
+                type             = .Uniform,
+                minBindingSize   = size_of(Transforms),
+                hasDynamicOffset = xx false,
+            },
+        };
 
-    WGPU.BindGroupLayoutRelease(layout);
+        layout_descriptor: WGPU.BindGroupLayoutDescriptor = {
+            entryCount = 1,
+            entries    = *layout_entry,
+        };
+
+        uniform.bind_group_layout = WGPU.DeviceCreateBindGroupLayout(device, *layout_descriptor);
+    }
+
+    { // Buffer
+        buffer_descriptor: WGPU.BufferDescriptor = {
+            usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
+            size  = WGPU.to_copy_buffer_alignment(size_of(Transforms)),
+        };
+
+        uniform.buffer = WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
+    }
+
+    { // Bind group
+        entry: WGPU.BindGroupEntry = {
+            binding = 0,
+            buffer = uniform.buffer,
+            offset = 0,
+            size = size_of(Transforms),
+        };
+
+        group_descriptor: WGPU.BindGroupDescriptor = {
+            label      = WGPU.to_string_view("Transforms Bind Group"),
+            layout     = uniform.bind_group_layout,
+            entryCount = 1,
+            entries    = *entry,
+        };
+
+        uniform.bind_group = WGPU.DeviceCreateBindGroup(device, *group_descriptor);
+    }
+
+    return uniform;
+}
+
+create_material_uniform :: (device: WGPU.Device, limits: WGPU.Limits, material_count: u32) -> Uniform {
+    uniform: Uniform;
+
+    { // Bind Group Layout
+        layout_entry := WGPU.BindGroupLayoutEntry.{
+            binding    = 0,
+            visibility = WGPU.WGPUShaderStage_Fragment,
+            buffer     = WGPU.BufferBindingLayout.{
+                type             = .Uniform,
+                hasDynamicOffset = xx true,
+                minBindingSize   = size_of(Material),
+            },
+        };
+
+        layout_descriptor := WGPU.BindGroupLayoutDescriptor.{
+            label      = WGPU.to_string_view("Material Bind Group Layout Descriptor"),
+            entryCount = 1,
+            entries = *layout_entry,
+        };
+
+        uniform.bind_group_layout = WGPU.DeviceCreateBindGroupLayout(device, *layout_descriptor);
+    }
+
+    { // Buffer
+        size := material_count * to_min_uniform_buffer_offset_alignment(limits, size_of(Material));
+
+        buffer_descriptor := WGPU.BufferDescriptor.{
+            usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
+            size             = WGPU.to_copy_buffer_alignment(size),
+            mappedAtCreation = xx false,
+        };
+
+        uniform.buffer = WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
+    }
+
+    { // Bind group
+        entry: WGPU.BindGroupEntry = {
+            binding = 0,
+            buffer  = uniform.buffer,
+            offset  = 0,
+            size    = size_of(Material),
+        };
+
+        group_descriptor: WGPU.BindGroupDescriptor = {
+            label      = WGPU.to_string_view("Material Bind Group"),
+            layout     = uniform.bind_group_layout,
+            entryCount = 1,
+            entries    = *entry,
+        };
+
+        uniform.bind_group = WGPU.DeviceCreateBindGroup(device, *group_descriptor);
+    }
+
+    return uniform;
+}
+
+release_uniform :: (uniform: Uniform) {
+    WGPU.BufferRelease(uniform.buffer);
+
+    WGPU.BindGroupRelease(uniform.bind_group);
+
+    WGPU.BindGroupLayoutRelease(uniform.bind_group_layout);
 }
 
 create_model_render_pipeline :: (
     device: WGPU.Device,
     texture_format: WGPU.TextureFormat,
-    transforms_bind_group_layout: WGPU.BindGroupLayout,
+    bind_group_layouts: []WGPU.BindGroupLayout,
 ) -> WGPU.RenderPipeline {
     ok, shader_module := create_wgpu_shader_module(
         device,
@@ -485,8 +577,8 @@ create_model_render_pipeline :: (
     };
 
     pipeline_layout_descriptor: WGPU.PipelineLayoutDescriptor = {
-        bindGroupLayoutCount = 1,
-        bindGroupLayouts     = *transforms_bind_group_layout,
+        bindGroupLayoutCount = cast(u32, bind_group_layouts.count),
+        bindGroupLayouts     = bind_group_layouts.data,
     };
 
     pipeline_layout := WGPU.DeviceCreatePipelineLayout(device, *pipeline_layout_descriptor);
@@ -508,7 +600,7 @@ update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
     width  := renderer.wgpu_toolbox.surface_configuration.width;
     height := renderer.wgpu_toolbox.surface_configuration.height;
 
-    renderer.transforms.matrices.projection = make_projection_matrix(
+    renderer.transforms.projection = make_projection_matrix(
         camera.fov_radians,
         cast(float, width) / cast(float, height),
         camera.z_near,
@@ -516,24 +608,24 @@ update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
         depth_range_01 = true,
     );
 
-    renderer.transforms.matrices.view = make_look_at_matrix(
+    renderer.transforms.view = make_look_at_matrix(
         camera.position,
         camera.target,
         camera.up,
         x_is_forward = false,
     );
 
-    column_major_matrices: Transforms.Matrices = {
-        projection = transpose(renderer.transforms.matrices.projection),
-        view = transpose(renderer.transforms.matrices.view),
+    column_major_matrices: Transforms = {
+        projection = transpose(renderer.transforms.projection),
+        view = transpose(renderer.transforms.view),
     };
 
     WGPU.QueueWriteBuffer(
         renderer.wgpu_toolbox.queue,
-        renderer.transforms.buffer,
+        renderer.transforms_uniform.buffer,
         0,
         *column_major_matrices,
-        size_of(Transforms.Matrices),
+        size_of(Transforms),
     );
 }
 

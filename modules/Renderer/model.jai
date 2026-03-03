@@ -21,7 +21,9 @@ Mesh :: struct {
     material: Material;
 }
 
-Material :: struct {} // @Todo
+Material :: struct {
+    base_color_factor: Vector4 = { 1, 1, 1, 1 };
+}
 
 Vertex :: struct {
     position: Vector3;
@@ -57,7 +59,7 @@ create_model_from_gltf_scene :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene
     }
 
     for gltf_mesh_data: gltf_scene.meshes {
-        model.meshes[it_index] = create_mesh_from_gltf_mesh_data(gltf_mesh_data, device, queue);
+        model.meshes[it_index] = create_mesh_from_gltf_mesh_data(gltf_mesh_data, gltf_scene, device, queue);
     }
 
     return model;
@@ -82,10 +84,14 @@ destroy_model :: (model: *Model) {
 
 #scope_file
 
-create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Device, queue: WGPU.Queue) -> Mesh {
+create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, gltf_scene: GLTF.Scene, device: WGPU.Device, queue: WGPU.Queue) -> Mesh {
     mesh: Mesh;
 
-    // mesh.material = @Todo!
+    if gltf_mesh_data.material_index != -1 {
+        gltf_material := gltf_scene.materials[gltf_mesh_data.material_index];
+
+        mesh.material.base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
+    }
 
     { // Index buffer
         // Asserting here as we are passing the gltf indices directly to the GPU buffer.

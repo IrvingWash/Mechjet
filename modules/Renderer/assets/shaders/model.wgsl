@@ -43,7 +43,16 @@ fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOu
     return output;
 }
 
+
+
+struct Material {
+    base_color_factor: vec4f,
+}
+
+@group(1) @binding(0)
+var<uniform> uMaterial: Material;
+
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    return vec4f(1, 0, 0, 1);
+    return uMaterial.base_color_factor;
 }
