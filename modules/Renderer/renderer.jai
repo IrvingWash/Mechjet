@@ -30,14 +30,14 @@ init_renderer :: (
 
     renderer.transforms_uniform = create_transforms_uniform(renderer.wgpu_toolbox.device);
 
-    renderer.material_uniform = create_material_uniform(renderer.wgpu_toolbox.device, renderer.limits, 1);
+    renderer.materials_uniform = create_material_uniform(renderer.wgpu_toolbox.device, renderer.limits, 1);
 
     renderer.model_render_pipeline = create_model_render_pipeline(
         renderer.wgpu_toolbox.device,
         renderer.wgpu_toolbox.surface_configuration.format,
         .[
             renderer.transforms_uniform.bind_group_layout,
-            renderer.material_uniform.bind_group_layout,
+            renderer.materials_uniform.bind_group_layout,
         ],
     );
 
@@ -64,7 +64,7 @@ deinit_renderer :: (handle: Renderer_Handle) {
 
     WGPU.RenderPipelineRelease(renderer.model_render_pipeline);
 
-    release_uniform(renderer.material_uniform);
+    release_uniform(renderer.materials_uniform);
 
     release_uniform(renderer.transforms_uniform);
 
@@ -137,7 +137,7 @@ Renderer :: struct {
     model_render_pipeline: WGPU.RenderPipeline;
 
     transforms_uniform:    Uniform;
-    material_uniform:      Uniform;
+    materials_uniform:     Uniform;
 
     batches: Table(u64, Batch);
 }
@@ -230,11 +230,11 @@ do_main_pass :: (
 
     if (
         (renderer.batches.count * material_bind_group_offset_step)
-            > cast(s64, WGPU.BufferGetSize(renderer.material_uniform.buffer))
+            > cast(s64, WGPU.BufferGetSize(renderer.materials_uniform.buffer))
     ) {
-        release_uniform(renderer.material_uniform);
+        release_uniform(renderer.materials_uniform);
 
-        renderer.material_uniform = create_material_uniform(
+        renderer.materials_uniform = create_material_uniform(
             renderer.wgpu_toolbox.device,
             renderer.limits,
             cast(u32, renderer.batches.count * 1.5), // Overallocate 1.5x
@@ -259,13 +259,13 @@ do_main_pass :: (
 
         WGPU.QueueWriteBuffer(
             renderer.wgpu_toolbox.queue,
-            renderer.material_uniform.buffer,
+            renderer.materials_uniform.buffer,
             current_material_bind_group_offset,
             *batch.mesh.material,
             size_of(Material),
         );
 
-        WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 1, renderer.material_uniform.bind_group, 1, *current_material_bind_group_offset);
+        WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 1, renderer.materials_uniform.bind_group, 1, *current_material_bind_group_offset);
 
         WGPU.QueueWriteBuffer(
             renderer.wgpu_toolbox.queue,
