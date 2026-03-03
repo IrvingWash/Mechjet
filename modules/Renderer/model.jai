@@ -87,40 +87,44 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, device: WGPU.Devi
 
     // mesh.material = @Todo!
 
-    // =========================================================================
-    // Index buffer
-    // =========================================================================
+    { // Index buffer
+        // Asserting here as we are passing the gltf indices directly to the GPU buffer.
+        #assert type_of(gltf_mesh_data.indices) == [..]u32;
 
-    mesh.index_count = cast(u32, gltf_mesh_data.indices.count);
+        mesh.index_count = cast(u32, gltf_mesh_data.indices.count);
 
-    index_buffer_descriptor: WGPU.BufferDescriptor = {
-        usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Index,
-        size             = WGPU.to_copy_buffer_alignment(mesh.index_count * size_of(u32)),
-        mappedAtCreation = xx false, // @Todo maybe true
-    };
-    mesh.index_buffer = WGPU.DeviceCreateBuffer(device, *index_buffer_descriptor);
+        index_data_size := mesh.index_count * size_of(u32);
 
-    // Asserting here as we are passing the gltf indices directly to the GPU buffer.
-    #assert type_of(gltf_mesh_data.indices) == [..]u32;
-    WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, gltf_mesh_data.indices.data, WGPU.BufferGetSize(mesh.index_buffer)); // @no_merge @Todo pass the actual amount
+        index_buffer_descriptor: WGPU.BufferDescriptor = {
+            usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Index,
+            size             = WGPU.to_copy_buffer_alignment(index_data_size),
+            mappedAtCreation = xx false, // @Todo maybe true
+        };
 
-    // =========================================================================
-    // Vertex buffer
-    // =========================================================================
+        mesh.index_buffer = WGPU.DeviceCreateBuffer(device, *index_buffer_descriptor);
 
-    vertex_buffer_descriptor: WGPU.BufferDescriptor = {
-        usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
-        size             = WGPU.to_copy_buffer_alignment(cast(u32, gltf_mesh_data.vertices.count) * size_of(Vertex)),
-        mappedAtCreation = xx false, // @Todo maybe true
-    };
-    mesh.vertex_buffer = WGPU.DeviceCreateBuffer(device, *vertex_buffer_descriptor);
+        WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, gltf_mesh_data.indices.data, index_data_size);
+    }
 
-    // Asserting here as we are passing gltf vertices directly to the GPU buffer.
-    #assert size_of(Vertex)        == size_of(GLTF.Vertex);
-    #assert Vertex.POSITION_OFFSET == GLTF.Vertex.POSITION_OFFSET;
-    #assert Vertex.NORMAL_OFFSET   == GLTF.Vertex.NORMAL_OFFSET;
-    #assert Vertex.UV_OFFSET       == GLTF.Vertex.UV_OFFSET;
-    WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, gltf_mesh_data.vertices.data, WGPU.BufferGetSize(mesh.vertex_buffer)); // @no_merge @Todo pass the actual amount
+    { // Vertex buffer
+        // Asserting here as we are passing gltf vertices directly to the GPU buffer.
+        #assert size_of(Vertex)        == size_of(GLTF.Vertex);
+        #assert Vertex.POSITION_OFFSET == GLTF.Vertex.POSITION_OFFSET;
+        #assert Vertex.NORMAL_OFFSET   == GLTF.Vertex.NORMAL_OFFSET;
+        #assert Vertex.UV_OFFSET       == GLTF.Vertex.UV_OFFSET;
+
+        vertex_data_size := cast(u32, gltf_mesh_data.vertices.count * size_of(GLTF.Vertex));
+
+        vertex_buffer_descriptor: WGPU.BufferDescriptor = {
+            usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
+            size             = WGPU.to_copy_buffer_alignment(vertex_data_size),
+            mappedAtCreation = xx false, // @Todo maybe true
+        };
+
+        mesh.vertex_buffer = WGPU.DeviceCreateBuffer(device, *vertex_buffer_descriptor);
+
+        WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, gltf_mesh_data.vertices.data, vertex_data_size);
+    }
 
     return mesh;
 }
