@@ -30,6 +30,12 @@ deinit_asset_storage :: (handle: Asset_Storage_Handle) {
     table_reset(*storage.model_storage.map);
     deinit(*storage.model_storage.map);
 
+    for texture, path: storage.textures {
+        free(path);
+        Renderer.destroy_texture(texture);
+    }
+    deinit(*storage.textures);
+
     free(storage);
 }
 
@@ -60,10 +66,11 @@ get_model_handle_from_storage :: (handle: Asset_Storage_Handle, renderer: Render
 
         return false, -1;
     }
+    defer GLTF.release_scene(*gltf_scene);
 
-    model := Renderer.create_model_from_gltf_scene(renderer, gltf_scene);
-
-    GLTF.release_scene(*gltf_scene);
+    model_creation_data := convert_gltf_scene_to_model_creation_data(storage, renderer, gltf_scene);
+    defer Renderer.destroy_model_creation_data(*model_creation_data);
+    model := Renderer.create_model(renderer, model_creation_data);
 
     array_add(*storage.model_storage.models, model);
 
@@ -86,12 +93,84 @@ resolve_model_handle_in_storage :: (storage_handle: Asset_Storage_Handle, model_
 
 Asset_Storage :: struct {
     model_storage: Model_Storage;
+    textures: Table(string, Renderer.Texture);
     gltf_converter: *GLTF.GLTF_Converter;
 }
 
 Model_Storage :: struct {
     models: [..]Renderer.Model;
     map:    Table(string, Model_Handle);
+}
+
+convert_gltf_scene_to_model_creation_data :: (storage: *Asset_Storage, renderer: Renderer.Renderer_Handle, gltf_scene: GLTF.Scene) -> Renderer.Model_Creation_Data {
+    model_creation_data: Renderer.Model_Creation_Data;
+
+    // Nodes
+    array_resize(*model_creation_data.nodes, gltf_scene.nodes.count);
+    for gltf_node, gltf_node_index: gltf_scene.nodes {
+        model_creation_data.nodes[gltf_node_index] = {
+            parent_index = gltf_node.parent_index,
+            first_mesh_index = gltf_node.first_mesh_index,
+            mesh_count = cast(u32, gltf_node.mesh_count),
+            local_transform = gltf_node.local_transform,
+        };
+
+        array_resize(*model_creation_data.nodes[gltf_node_index].children_indices, gltf_node.children_indices.count);
+        for gltf_child_index, gltf_child_index_index: gltf_node.children_indices {
+            model_creation_data.nodes[gltf_node_index].children_indices[gltf_child_index_index] = cast(u32, gltf_child_index);
+        }
+    }
+
+    // Meshes
+    array_resize(*model_creation_data.meshes, gltf_scene.meshes.count);
+    for gltf_mesh, gltf_mesh_index: gltf_scene.meshes {
+        // Vertices
+        array_resize(
+            *model_creation_data.meshes[gltf_mesh_index].vertices,
+            gltf_mesh.vertices.count,
+        );
+        for gltf_vertex, gltf_vertex_index: gltf_mesh.vertices {
+            model_creation_data.meshes[gltf_mesh_index]
+                .vertices[gltf_vertex_index] = {
+                    position = gltf_vertex.position,
+                    normal = gltf_vertex.normal,
+                    uv = gltf_vertex.uv,
+            };
+        }
+
+        // Indices
+        array_resize(
+            *model_creation_data.meshes[gltf_mesh_index].indices,
+            gltf_mesh.indices.count,
+        );
+        for gltf_index, gltf_index_index: gltf_mesh.indices {
+            model_creation_data.meshes[gltf_mesh_index].
+                indices[gltf_index_index] = gltf_index;
+        }
+
+        // Material
+        if gltf_mesh.material_index != -1 {
+            gltf_material := gltf_scene.materials[gltf_mesh.material_index];
+
+            model_creation_data.meshes[gltf_mesh_index].material.base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
+
+            image_path := gltf_material.pbr_metallic_roughness.base_color_texture.image_path;
+            if !image_path { // @no_merge @Todo support image data
+                continue;
+            }
+
+            ok, texture := table_find(*storage.textures, image_path);
+            if !ok {
+                texture = Renderer.create_base_color_texture(renderer, image_path);
+
+                table_set(*storage.textures, copy_string(image_path), texture);
+            }
+
+            model_creation_data.meshes[gltf_mesh_index].material.base_color_texture = texture;
+        }
+    }
+
+    return model_creation_data;
 }
 
 #import "Basic";

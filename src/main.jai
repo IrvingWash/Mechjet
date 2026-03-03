@@ -31,15 +31,15 @@ main :: () {
 
     ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
     assert(ok);
-    ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree_glb/scene.glb");
-    assert(ok);
+    // ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree_glb/scene.glb");
+    // assert(ok);
 
     while !Engine.should_quit() {
         Engine.begin_frame();
 
         Engine.start_drawing(
             Camera.{
-                position = { 0, 30, 30 },
+                position = { 0, 20, 15 },
                 target   = { 0, 0, 0, },
                 fov_radians = Engine.deg_to_rad(60),
                 z_near = 0.1,
@@ -47,8 +47,8 @@ main :: () {
             },
         );
 
-        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), Matrix4_Identity);
-        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ 0, 0, 5 }));
+        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.5, 0.5, 0.5 }));
+        // Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_scale_matrix4({ 3, 3, 3 }));
 
         Engine.end_drawing();
 

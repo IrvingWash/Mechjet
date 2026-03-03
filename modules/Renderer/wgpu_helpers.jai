@@ -62,15 +62,17 @@ init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
 }
 
 deinit_wgpu :: (toolbox: WGPU_Toolbox) {
-    WGPU.SurfaceCapabilitiesFreeMembers(toolbox.surface_capabilities);
+    using toolbox;
 
-    WGPU.QueueRelease(toolbox.queue);
+    WGPU.SurfaceCapabilitiesFreeMembers(surface_capabilities);
 
-    WGPU.SurfaceUnconfigure(toolbox.surface);
+    WGPU.QueueRelease(queue);
 
-    WGPU.DeviceRelease(toolbox.device);
+    WGPU.SurfaceUnconfigure(surface);
 
-    WGPU.SurfaceRelease(toolbox.surface);
+    WGPU.DeviceRelease(device);
+
+    WGPU.SurfaceRelease(surface);
 }
 
 get_wgpu_surface_texture_view :: (surface: WGPU.Surface) -> ok: bool, WGPU.TextureView, WGPU.Texture {

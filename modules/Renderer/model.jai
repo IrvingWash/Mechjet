@@ -22,7 +22,8 @@ Mesh :: struct {
 }
 
 Material :: struct {
-    base_color_factor: Vector4 = { 1, 1, 1, 1 };
+    base_color_factor:  Vector4 = { 1, 1, 1, 1 };
+    base_color_texture: Texture;
 }
 
 Vertex :: struct {
@@ -35,31 +36,42 @@ Vertex :: struct {
     UV_OFFSET       :: size_of(Vector3) * 2;
 }
 
-create_model_from_gltf_scene :: (handle: Renderer_Handle, gltf_scene: GLTF.Scene) -> Model {
+// Intermediate representation between a format (GLTF) and the data needed by the renderer
+Model_Creation_Data :: struct {
+    nodes:  [..]Node;
+    meshes: [..]Mesh_Data;
+
+    Mesh_Data :: struct {
+        vertices: [..]Vertex;
+        indices: [..]u32;
+        material: Material;
+    }
+}
+
+destroy_model_creation_data :: (model_creation_data: *Model_Creation_Data) {
+    // We don't destroy anything related to nodes as Model takes ownership.
+
+    for mesh: model_creation_data.meshes {
+        array_free(mesh.vertices);
+        array_free(mesh.indices);
+    }
+    array_free(model_creation_data.meshes);
+
+    model_creation_data.* = {};
+}
+
+create_model :: (handle: Renderer_Handle, model_creation_data: Model_Creation_Data) -> Model {
     renderer := cast(*Renderer, handle);
 
     using,only(device, queue) renderer.wgpu_toolbox;
 
     model: Model;
-    array_resize(*model.nodes, gltf_scene.nodes.count);
-    array_resize(*model.meshes, gltf_scene.meshes.count);
 
-    for gltf_node, i: gltf_scene.nodes {
-        model.nodes[i] = {
-            parent_index = gltf_node.parent_index,
-            first_mesh_index = gltf_node.first_mesh_index,
-            mesh_count = cast(u32, gltf_node.mesh_count),
-            local_transform = gltf_node.local_transform,
-        };
+    model.nodes = model_creation_data.nodes;
 
-        array_resize(*model.nodes[i].children_indices, gltf_node.children_indices.count);
-        for child_index: gltf_node.children_indices {
-            model.nodes[i].children_indices[it_index] = cast(u32, child_index);
-        }
-    }
-
-    for gltf_mesh_data: gltf_scene.meshes {
-        model.meshes[it_index] = create_mesh_from_gltf_mesh_data(gltf_mesh_data, gltf_scene, device, queue);
+    array_resize(*model.meshes, model_creation_data.meshes.count);
+    for mesh_creation_data: model_creation_data.meshes {
+        model.meshes[it_index] = create_mesh(device, queue, mesh_creation_data);
     }
 
     return model;
@@ -84,20 +96,13 @@ destroy_model :: (model: *Model) {
 
 #scope_file
 
-create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, gltf_scene: GLTF.Scene, device: WGPU.Device, queue: WGPU.Queue) -> Mesh {
+create_mesh :: (device: WGPU.Device, queue: WGPU.Queue, mesh_creation_data: Model_Creation_Data.Mesh_Data) -> Mesh {
     mesh: Mesh;
 
-    if gltf_mesh_data.material_index != -1 {
-        gltf_material := gltf_scene.materials[gltf_mesh_data.material_index];
-
-        mesh.material.base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
-    }
+    mesh.material = mesh_creation_data.material;
 
     { // Index buffer
-        // Asserting here as we are passing the gltf indices directly to the GPU buffer.
-        #assert type_of(gltf_mesh_data.indices) == [..]u32;
-
-        mesh.index_count = cast(u32, gltf_mesh_data.indices.count);
+        mesh.index_count = cast(u32, mesh_creation_data.indices.count);
 
         index_data_size := mesh.index_count * size_of(u32);
 
@@ -109,17 +114,11 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, gltf_scene: GLTF.
 
         mesh.index_buffer = WGPU.DeviceCreateBuffer(device, *index_buffer_descriptor);
 
-        WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, gltf_mesh_data.indices.data, index_data_size);
+        WGPU.QueueWriteBuffer(queue, mesh.index_buffer, 0, mesh_creation_data.indices.data, index_data_size);
     }
 
     { // Vertex buffer
-        // Asserting here as we are passing gltf vertices directly to the GPU buffer.
-        #assert size_of(Vertex)        == size_of(GLTF.Vertex);
-        #assert Vertex.POSITION_OFFSET == GLTF.Vertex.POSITION_OFFSET;
-        #assert Vertex.NORMAL_OFFSET   == GLTF.Vertex.NORMAL_OFFSET;
-        #assert Vertex.UV_OFFSET       == GLTF.Vertex.UV_OFFSET;
-
-        vertex_data_size := cast(u32, gltf_mesh_data.vertices.count * size_of(GLTF.Vertex));
+        vertex_data_size := cast(u32, mesh_creation_data.vertices.count * size_of(Vertex));
 
         vertex_buffer_descriptor: WGPU.BufferDescriptor = {
             usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Vertex,
@@ -129,11 +128,10 @@ create_mesh_from_gltf_mesh_data :: (gltf_mesh_data: GLTF.Mesh, gltf_scene: GLTF.
 
         mesh.vertex_buffer = WGPU.DeviceCreateBuffer(device, *vertex_buffer_descriptor);
 
-        WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, gltf_mesh_data.vertices.data, vertex_data_size);
+        WGPU.QueueWriteBuffer(queue, mesh.vertex_buffer, 0, mesh_creation_data.vertices.data, vertex_data_size);
     }
 
     return mesh;
 }
 
 WGPU :: #import "WGPU";
-GLTF :: #import "GLTF";

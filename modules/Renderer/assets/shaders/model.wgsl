@@ -52,7 +52,16 @@ struct Material {
 @group(1) @binding(0)
 var<uniform> u_material: Material;
 
+@group(1) @binding(1)
+var base_color_texture: texture_2d<f32>;
+@group(1) @binding(2)
+var base_color_sampler: sampler;
+
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    return u_material.base_color_factor;
+    return textureSample(
+        base_color_texture,
+        base_color_sampler,
+        input.uv,
+    ) * u_material.base_color_factor;
 }

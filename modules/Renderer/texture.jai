@@ -9,18 +9,19 @@ Texture_Kind :: enum {
     BASE_COLOR;
 }
 
-create_base_color_texture_from_gltf_material :: (
-    device: WGPU.Device,
-    queue: WGPU.Queue,
-    gltf_material: GLTF.Material,
+create_base_color_texture :: (
+    handle: Renderer_Handle,
+    path: string,
 ) -> Texture {
+    renderer := cast(*Renderer, handle);
+    using renderer.wgpu_toolbox;
+
     texture: Texture;
 
     texture.kind = .BASE_COLOR;
 
-    // @no_merge @Todo image_data!
-    image := load_image(gltf_material.pbr_metallic_roughness.base_color_texture.image_path);
-    defer release_image(image.data);
+    image := load_image(path);
+    // defer release_image(image.data);
 
     // Texture
 
@@ -66,14 +67,14 @@ create_base_color_texture_from_gltf_material :: (
     // Texture View
 
     texture_view_descriptor := WGPU.TextureViewDescriptor.{
-        format = .RGBA8UnormSrgb, // @no_merge hardcode!
-        dimesion = ._2D,
-        baseMipLevel = 0,
-        mipLevelCount = 0,
-        baseArrrayLayer = 0,
-        arrayLayerCount = 0,
-        aspect = .All,
-        usage = WGPU.WGPUTextureUsage_None,
+        format          = .RGBA8UnormSrgb, // @no_merge hardcode!
+        dimension       = ._2D,
+        baseMipLevel    = 0,
+        mipLevelCount   = 1,
+        baseArrayLayer  = 0,
+        arrayLayerCount = 1,
+        aspect          = .All,
+        usage           = WGPU.WGPUTextureUsage_None,
     };
     texture.view = WGPU.TextureCreateView(texture.texture, *texture_view_descriptor);
 
@@ -85,10 +86,10 @@ create_base_color_texture_from_gltf_material :: (
         addressModeW  = .ClampToEdge, // @Todo hardcode!
         magFilter     = .Linear, // @Todo hardcode!
         minFilter     = .Nearest, // @Todo hardcode!
-        mimpmapFilter = .Nearest, // @Todo hardcode!
+        mipmapFilter  = .Nearest, // @Todo hardcode!
         lodMinClamp   = 0, // @Todo hardcode!
         lodMaxClamp   = 32, // @Todo hardcode!
-        compare       = .None, // @Todo hardcode!
+        compare       = .Undefined, // @Todo hardcode!
         maxAnisotropy = 1, // @Todo hardcode!
     };
 
@@ -97,7 +98,7 @@ create_base_color_texture_from_gltf_material :: (
     return texture;
 }
 
-release_texture :: (texture: Texture) {
+destroy_texture :: (texture: Texture) {
     WGPU.SamplerRelease(texture.sampler);
     WGPU.TextureViewRelease(texture.view);
     WGPU.TextureRelease(texture.texture);
@@ -116,7 +117,7 @@ Image :: struct {
 
 load_image :: (path: string) -> Image {
     width, height, channel_count: s32;
-    data := stbi_load(temp_c_string(image_path), *width, *height, *channel_count, 0);
+    data := stbi_load(temp_c_string(path), *width, *height, *channel_count, 0);
     assert(data != null); // @no_merge @Todo handle more graecully!
 
     return Image.{
