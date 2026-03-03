@@ -31,6 +31,8 @@ main :: () {
 
     ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
     assert(ok);
+    ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree_glb/scene.glb");
+    assert(ok);
 
     while !Engine.should_quit() {
         Engine.begin_frame();
@@ -46,6 +48,7 @@ main :: () {
         );
 
         Engine.draw_model(Engine.resolve_model_handle(lantern_handle), Matrix4_Identity);
+        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ 0, 0, 5 }));
 
         Engine.end_drawing();
 
