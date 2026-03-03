@@ -29,7 +29,7 @@ main :: () {
     assert(ok);
     defer Engine.deinit();
 
-    ok =, lamp_handle := Engine.get_model_handle("modules/GLTF/assets/lantern_glb/lantern.glb");
+    ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern_glb/lantern.glb");
     assert(ok);
 
     ok =, mech_handle := Engine.get_model_handle("modules/GLTF/assets/mech_glb/mech.glb");
@@ -51,8 +51,8 @@ main :: () {
             },
         );
 
-        Engine.draw_model(Engine.resolve_model_handle(lamp_handle), Matrix4_Identity);
-        Engine.draw_model(Engine.resolve_model_handle(lamp_handle), make_translation_matrix4({ 10, 0, 0 }));
+        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), Matrix4_Identity);
+        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_translation_matrix4({ 10, 0, 0 }));
         Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({-10, 0, 0 }));
         Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({-10, 10, 0 }));
         Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({-10, -10, 0 }));
