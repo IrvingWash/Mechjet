@@ -23,7 +23,7 @@ struct VertexOutput {
 }
 
 @group(0) @binding(0)
-var<uniform> uTransforms: Transforms;
+var<uniform> u_transforms: Transforms;
 
 @vertex
 fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOutput {
@@ -36,7 +36,7 @@ fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOu
         instance_input.transform_column_4,
     );
 
-    output.clip_position = uTransforms.projection * uTransforms.view * model_transform * vec4f(vertex_input.position, 1);
+    output.clip_position = u_transforms.projection * u_transforms.view * model_transform * vec4f(vertex_input.position, 1);
     output.normal   = vertex_input.normal;
     output.uv = vertex_input.uv;
 
@@ -50,9 +50,9 @@ struct Material {
 }
 
 @group(1) @binding(0)
-var<uniform> uMaterial: Material;
+var<uniform> u_material: Material;
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    return uMaterial.base_color_factor;
+    return u_material.base_color_factor;
 }

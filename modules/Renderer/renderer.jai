@@ -395,7 +395,7 @@ create_material_uniform :: (device: WGPU.Device, limits: WGPU.Limits, material_c
         layout_descriptor := WGPU.BindGroupLayoutDescriptor.{
             label      = WGPU.to_string_view("Material Bind Group Layout Descriptor"),
             entryCount = 1,
-            entries = *layout_entry,
+            entries    = *layout_entry,
         };
 
         uniform.bind_group_layout = WGPU.DeviceCreateBindGroupLayout(device, *layout_descriptor);
@@ -644,4 +644,3 @@ handle_framebuffer_size_change :: (width: u32, height: u32, data: *void) {
 WGPU :: #import "WGPU";
 Window :: #import "Window";
 #load "wgpu_helpers.jai";
-#load "model.jai";
