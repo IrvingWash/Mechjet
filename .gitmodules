@@ -1,9 +1,9 @@
-[submodule "modules/Jai_WGPU"]
-	path = modules/Jai_WGPU
-	url = git@github.com:IrvingWash/Jai_WGPU.git
 [submodule "modules/GLFW/glfw"]
 	path = modules/GLFW/glfw
 	url = git@github.com:glfw/glfw.git
 [submodule "modules/WGPU/wgpu-native"]
 	path = modules/WGPU/wgpu-native
 	url = git@github.com:gfx-rs/wgpu-native.git
+[submodule "modules/jaison"]
+	path = modules/jaison
+	url = git@github.com:rluba/jaison.git

@@ -1,10 +1,11 @@
 #scope_module
 
 WGPU_Toolbox :: struct {
-    surface:              WGPU.Surface;
-    surface_capabilities: WGPU.SurfaceCapabilities;
-    device:               WGPU.Device;
-    queue:                WGPU.Queue;
+    surface:               WGPU.Surface;
+    surface_capabilities:  WGPU.SurfaceCapabilities;
+    device:                WGPU.Device;
+    queue:                 WGPU.Queue;
+    surface_configuration: WGPU.SurfaceConfiguration;
 }
 
 init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
@@ -46,7 +47,14 @@ init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
         return false, toolbox;
     }
 
-    configure_wgpu_surface(toolbox.surface, toolbox.device, toolbox.surface_capabilities, window);
+    width, height := Window.get_framebuffer_size(window);
+    toolbox.surface_configuration = configure_wgpu_surface(
+        toolbox.surface,
+        toolbox.device,
+        toolbox.surface_capabilities,
+        width,
+        height,
+    );
 
     toolbox.queue = WGPU.DeviceGetQueue(toolbox.device);
 
@@ -54,15 +62,17 @@ init_wgpu :: (window: Window.Window_Handle) -> ok: bool, WGPU_Toolbox {
 }
 
 deinit_wgpu :: (toolbox: WGPU_Toolbox) {
-    WGPU.SurfaceCapabilitiesFreeMembers(toolbox.surface_capabilities);
+    using toolbox;
 
-    WGPU.QueueRelease(toolbox.queue);
+    WGPU.SurfaceCapabilitiesFreeMembers(surface_capabilities);
 
-    WGPU.SurfaceUnconfigure(toolbox.surface);
+    WGPU.QueueRelease(queue);
 
-    WGPU.DeviceRelease(toolbox.device);
+    WGPU.SurfaceUnconfigure(surface);
 
-    WGPU.SurfaceRelease(toolbox.surface);
+    WGPU.DeviceRelease(device);
+
+    WGPU.SurfaceRelease(surface);
 }
 
 get_wgpu_surface_texture_view :: (surface: WGPU.Surface) -> ok: bool, WGPU.TextureView, WGPU.Texture {
@@ -86,7 +96,7 @@ get_wgpu_surface_texture_view :: (surface: WGPU.Surface) -> ok: bool, WGPU.Textu
     return true, WGPU.TextureCreateView(surface_texture.texture, *descriptor), surface_texture.texture;
 }
 
-create_wgpu_shader :: (device: WGPU.Device, path: string) -> ok: bool, WGPU.ShaderModule {
+create_wgpu_shader_module :: (device: WGPU.Device, path: string) -> ok: bool, WGPU.ShaderModule {
     code, ok := read_entire_file(path,, temp);
     if !ok {
         log_error("Failed to read shader file at '%'", path);
@@ -105,17 +115,16 @@ create_wgpu_shader :: (device: WGPU.Device, path: string) -> ok: bool, WGPU.Shad
     return true, WGPU.DeviceCreateShaderModule(device, *descriptor);
 }
 
-
-
-#scope_file
-
 configure_wgpu_surface :: (
-    surface: WGPU.Surface,
-    device: WGPU.Device,
+    surface:      WGPU.Surface,
+    device:       WGPU.Device,
     capabilities: WGPU.SurfaceCapabilities,
-    window: Window.Window_Handle,
-) {
-    width, height := Window.get_framebuffer_size(window);
+    width:        u32,
+    height:       u32,
+) -> WGPU.SurfaceConfiguration {
+    if capabilities.formats[0] != .BGRA8UnormSrgb {
+        log_error("Got a % texture format for Surface, but wanted %", capabilities.formats[0], WGPU.TextureFormat.BGRA8UnormSrgb );
+    }
 
     config: WGPU.SurfaceConfiguration = {
         device      = device,
@@ -128,7 +137,13 @@ configure_wgpu_surface :: (
     };
 
     WGPU.SurfaceConfigure(surface, *config);
+
+    return config;
 }
+
+
+
+#scope_file
 
 get_wgpu_device :: (adapter: WGPU.Adapter) -> ok: bool, WGPU.Device {
     on_device_lost: WGPU.DeviceLostCallback : (

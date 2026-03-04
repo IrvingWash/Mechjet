@@ -1,5 +1,11 @@
 DEPTH_SLICE_UNDEFINED :: U32_MAX;
 
+to_copy_buffer_alignment :: (size: u32) -> u32 {
+    COPY_BUFFER_ALIGNMENT: u32 : 4;
+
+    return (size + (COPY_BUFFER_ALIGNMENT - 1)) & ~(COPY_BUFFER_ALIGNMENT - 1);
+}
+
 from_string_view :: (text: StringView) -> string {
     return {
         data  = text.data,
@@ -14,6 +20,11 @@ to_string_view :: (text: string) -> StringView {
     };
 }
 
+to_wgpu_color :: (color: Vector4) -> Color {
+    using color;
+
+    return { x, y, z, w };
+}
 
 #if OS == {
     case .LINUX;

@@ -5,23 +5,61 @@
     TEMP_ALLOCATOR_POISON_FREED_MEMORY = DEBUG,
     ENABLE_ASSERT = DEBUG,
 );
+#import "Math";
 Engine :: #import "Engine"()(DEBUG = DEBUG);
+
+Camera :: struct {
+    position: Vector3;
+    target:   Vector3;
+    up:       Vector3 = { 0, 1, 0 };
+
+    fov_radians: float;
+    z_near: float;
+    z_far:  float;
+}
 
 main :: () {
     #if DEBUG {
         defer report_memory_leaks();
     }
 
+    setup_formatting();
+
     ok := Engine.init("Mechjet", 800, 600);
     assert(ok);
     defer Engine.deinit();
 
+    ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
+    assert(ok);
+    ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree_glb/scene.glb");
+    assert(ok);
+
     while !Engine.should_quit() {
         Engine.begin_frame();
 
-        Engine.start_drawing();
+        Engine.start_drawing(
+            Camera.{
+                position = { 0, 20, 15 },
+                target   = { 0, 0, 0, },
+                fov_radians = Engine.deg_to_rad(60),
+                z_near = 0.1,
+                z_far = 100,
+            },
+        );
+
+        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.5, 0.5, 0.5 }));
+        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 3, 3, 3 }));
+
         Engine.end_drawing();
 
         reset_temporary_storage();
     }
+}
+
+setup_formatting :: () {
+    print_style := *context.print_style;
+
+    print_style.default_format_struct.draw_type_name = true;
+    print_style.default_format_struct.use_long_form_if_more_than_this_many_members = 0;
+    print_style.default_format_struct.use_newlines_if_long_form = true;
 }

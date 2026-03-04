@@ -6,6 +6,7 @@
         "modules/GLFW/module.jai",
         "modules/Renderer/module.jai",
         "modules/WGPU/module.jai",
+        "modules/GLTF/module.jai",
         "build.jai",
         "install_tools.jai"
     ],
