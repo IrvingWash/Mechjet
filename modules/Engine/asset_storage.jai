@@ -102,71 +102,83 @@ Model_Storage :: struct {
     map:    Table(string, Model_Handle);
 }
 
-convert_gltf_scene_to_model_creation_data :: (storage: *Asset_Storage, renderer: Renderer.Renderer_Handle, gltf_scene: GLTF.Scene) -> Renderer.Model_Creation_Data {
+convert_gltf_scene_to_model_creation_data :: (
+    storage: *Asset_Storage,
+    renderer: Renderer.Renderer_Handle,
+    gltf_scene: GLTF.Scene,
+) -> Renderer.Model_Creation_Data {
     model_creation_data: Renderer.Model_Creation_Data;
 
-    // Nodes
-    array_resize(*model_creation_data.nodes, gltf_scene.nodes.count);
-    for gltf_node, gltf_node_index: gltf_scene.nodes {
-        model_creation_data.nodes[gltf_node_index] = {
-            parent_index = gltf_node.parent_index,
-            first_mesh_index = gltf_node.first_mesh_index,
-            mesh_count = cast(u32, gltf_node.mesh_count),
-            local_transform = gltf_node.local_transform,
-        };
+    { // Nodes
+        array_resize(*model_creation_data.nodes, gltf_scene.nodes.count);
+        for gltf_node, gltf_node_index: gltf_scene.nodes {
+            model_creation_data.nodes[gltf_node_index] = {
+                parent_index = gltf_node.parent_index,
+                first_mesh_index = gltf_node.first_mesh_index,
+                mesh_count = cast(u32, gltf_node.mesh_count),
+                local_transform = gltf_node.local_transform,
+            };
 
-        array_resize(*model_creation_data.nodes[gltf_node_index].children_indices, gltf_node.children_indices.count);
-        for gltf_child_index, gltf_child_index_index: gltf_node.children_indices {
-            model_creation_data.nodes[gltf_node_index].children_indices[gltf_child_index_index] = cast(u32, gltf_child_index);
+            array_resize(*model_creation_data.nodes[gltf_node_index].children_indices, gltf_node.children_indices.count);
+            for gltf_child_index, gltf_child_index_index: gltf_node.children_indices {
+                model_creation_data.nodes[gltf_node_index].children_indices[gltf_child_index_index] = cast(u32, gltf_child_index);
+            }
         }
     }
 
-    // Meshes
-    array_resize(*model_creation_data.meshes, gltf_scene.meshes.count);
-    for gltf_mesh, gltf_mesh_index: gltf_scene.meshes {
-        // Vertices
-        array_resize(
-            *model_creation_data.meshes[gltf_mesh_index].vertices,
-            gltf_mesh.vertices.count,
-        );
-        for gltf_vertex, gltf_vertex_index: gltf_mesh.vertices {
-            model_creation_data.meshes[gltf_mesh_index]
-                .vertices[gltf_vertex_index] = {
-                    position = gltf_vertex.position,
-                    normal = gltf_vertex.normal,
-                    uv = gltf_vertex.uv,
-            };
-        }
-
-        // Indices
-        array_resize(
-            *model_creation_data.meshes[gltf_mesh_index].indices,
-            gltf_mesh.indices.count,
-        );
-        for gltf_index, gltf_index_index: gltf_mesh.indices {
-            model_creation_data.meshes[gltf_mesh_index].
-                indices[gltf_index_index] = gltf_index;
-        }
-
-        // Material
-        if gltf_mesh.material_index != -1 {
-            gltf_material := gltf_scene.materials[gltf_mesh.material_index];
-
-            model_creation_data.meshes[gltf_mesh_index].material.base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
-
-            image_path := gltf_material.pbr_metallic_roughness.base_color_texture.image_path;
-            if !image_path { // @no_merge @Todo support image data
-                continue;
+    { // Meshes
+        array_resize(*model_creation_data.meshes, gltf_scene.meshes.count);
+        for gltf_mesh, gltf_mesh_index: gltf_scene.meshes {
+            { // Vertices
+                array_resize(
+                    *model_creation_data.meshes[gltf_mesh_index].vertices,
+                    gltf_mesh.vertices.count,
+                );
+                for gltf_vertex, gltf_vertex_index: gltf_mesh.vertices {
+                    model_creation_data.meshes[gltf_mesh_index]
+                    .vertices[gltf_vertex_index] = {
+                        position = gltf_vertex.position,
+                        normal = gltf_vertex.normal,
+                        uv = gltf_vertex.uv,
+                    };
+                }
             }
 
-            ok, texture := table_find(*storage.textures, image_path);
-            if !ok {
-                texture = Renderer.create_base_color_texture(renderer, image_path);
-
-                table_set(*storage.textures, copy_string(image_path), texture);
+            { // Indices
+                array_resize(
+                    *model_creation_data.meshes[gltf_mesh_index].indices,
+                    gltf_mesh.indices.count,
+                );
+                for gltf_index, gltf_index_index: gltf_mesh.indices {
+                    model_creation_data.meshes[gltf_mesh_index].
+                    indices[gltf_index_index] = gltf_index;
+                }
             }
 
-            model_creation_data.meshes[gltf_mesh_index].material.base_color_texture = texture;
+            // Material
+            if gltf_mesh.material_index != -1 {
+                gltf_material := gltf_scene.materials[gltf_mesh.material_index];
+
+                model_creation_data.meshes[gltf_mesh_index].material.base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
+
+                { // Texture
+                    // @Todo @Robustness support image_data from GLB. It's unclear how to key them in the table though
+
+                    image_path := gltf_material.pbr_metallic_roughness.base_color_texture.image_path;
+                    if !image_path {
+                        continue;
+                    }
+
+                    ok, texture := table_find(*storage.textures, image_path);
+                    if !ok {
+                        texture = Renderer.create_base_color_texture(renderer, image_path);
+
+                        table_set(*storage.textures, copy_string(image_path), texture);
+                    }
+
+                    model_creation_data.meshes[gltf_mesh_index].material.base_color_texture = texture;
+                }
+            }
         }
     }
 

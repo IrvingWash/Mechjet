@@ -45,7 +45,10 @@ init_renderer :: (
         renderer.transforms_bind_group_layout,
     );
 
-    renderer.default_base_color_texture = create_base_color_texture(renderer, path_join(#filepath, "assets/textures/default.png",, temp));
+    renderer.default_base_color_texture = create_base_color_texture(
+        renderer,
+        path_join(#filepath, "assets/textures/default.png",, temp),
+    );
 
     Window.add_framebuffer_size_change_handler(
         renderer.window,
@@ -192,7 +195,7 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
                 column_major_transform = transpose(transform),
             };
 
-            batch := table_find_pointer(*renderer.batches, xx mesh.vertex_buffer); // @Todo figure out the key
+            batch := table_find_pointer(*renderer.batches, xx mesh.vertex_buffer);
             if batch {
                 array_add(*batch.instances, instance);
             } else {
@@ -208,7 +211,7 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
 
                 array_add(*new_batch.instances, instance);
 
-                table_set(*renderer.batches, xx mesh.vertex_buffer, new_batch); // @Todo figure out the key
+                table_set(*renderer.batches, xx mesh.vertex_buffer, new_batch);
             }
         }
     }

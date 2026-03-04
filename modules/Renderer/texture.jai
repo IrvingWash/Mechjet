@@ -21,7 +21,7 @@ create_base_color_texture :: (
     texture.kind = .BASE_COLOR;
 
     image := load_image(path);
-    // defer release_image(image.data);
+    defer release_image(image.data);
 
     // Texture
 
@@ -117,7 +117,7 @@ Image :: struct {
 
 load_image :: (path: string) -> Image {
     width, height, channel_count: s32;
-    data := stbi_load(temp_c_string(path), *width, *height, *channel_count, 0);
+    data := stbi_load(temp_c_string(path), *width, *height, *channel_count, 4);
     assert(data != null); // @no_merge @Todo handle more graecully!
 
     return Image.{
