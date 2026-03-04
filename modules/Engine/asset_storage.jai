@@ -157,31 +157,91 @@ convert_gltf_scene_to_model_creation_data :: (
 
             // Material
             if gltf_mesh.material_index != -1 {
-                gltf_material := gltf_scene.materials[gltf_mesh.material_index];
-
-                mesh.material.params
-                    .base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
-
-                { // Texture
-                    image_path := gltf_material.pbr_metallic_roughness.base_color_texture.image_path;
-                    if !image_path {
-                        continue;
-                    }
-
-                    ok, texture := table_find(*storage.textures, image_path);
-                    if !ok {
-                        texture = Renderer.create_base_color_texture(renderer, image_path);
-
-                        table_set(*storage.textures, copy_string(image_path), texture);
-                    }
-
-                    mesh.material.base_color_texture = texture;
-                }
+                mesh.material = convert_gltf_material(storage, renderer, gltf_scene.materials[gltf_mesh.material_index]);
             }
         }
     }
 
     return model_creation_data;
+}
+
+convert_gltf_material :: (
+    storage: *Asset_Storage,
+    renderer: *Renderer.Renderer_Handle,
+    gltf_material: GLTF.Material,
+) -> Renderer.Material {
+    material: Renderer.Material;
+
+    { // PBR
+        gltf_pbr := gltf_material.pbr_metallic_roughness;
+
+        material.params
+            .base_color_factor = gltf_pbr.base_color_factor;
+
+        // Base color
+        if gltf_pbr.base_color_texture.image_path {
+            gltf_base_color_texture := gltf_pbr.base_color_texture;
+
+            ok, texture := table_find(*storage.textures, gltf_base_color_texture.image_path);
+            if !ok {
+                texture = Renderer.create_base_color_texture(
+                    renderer,
+                    gltf_base_color_texture.image_path,
+                    convert_gltf_wrap_mode(gltf_base_color_texture.wrap_s),
+                    convert_gltf_wrap_mode(gltf_base_color_texture.wrap_t),
+                    convert_gltf_mag_filter(gltf_base_color_texture.mag_filter),
+                    convert_gltf_min_filter(gltf_base_color_texture.min_filter),
+                );
+
+                table_set(*storage.textures, copy_string(gltf_base_color_texture.image_path), texture);
+            }
+
+            material.base_color_texture = texture;
+        }
+    }
+
+    return material;
+}
+
+convert_gltf_wrap_mode :: (gltf_wrap_mode: GLTF.Material.Texture.Wrap_Mode) -> Renderer.Address_Mode {
+    if #complete gltf_wrap_mode == {
+        case .CLAMP_TO_EDGE;
+            return .ClampToEdge;
+        case .MIRRORED_REPEAT;
+            return .MirrorRepeat;
+        case .REPEAT;
+            return .Repeat;
+    }
+}
+
+convert_gltf_mag_filter :: (gltf_mag_filter: GLTF.Material.Texture.Mag_Filter) -> Renderer.Filter_Mode {
+    if #complete gltf_mag_filter == {
+        case .UNKNOWN;
+            log_error("Got UNKNOWN mag filter from GLTF, defaulted to linear");
+            return .Linear;
+        case .NEAREST;
+            return .Nearest;
+        case .LINEAR;
+            return .Linear;
+    }
+}
+
+convert_gltf_min_filter :: (gltf_min_filter: GLTF.Material.Texture.Min_Filter) -> Renderer.Filter_Mode {
+    if #complete gltf_min_filter == {
+        case .UNKNOWN;
+            log_error("Got UNKNOWN min filter from GLTF, defaulted to nearest");
+            return .Nearest;
+        case .NEAREST;
+            return .Nearest;
+        case .LINEAR;
+            return .Linear;
+        case .NEAREST_MIPMAP_NEAREST; #through;
+        case .LINEAR_MIPMAP_NEAREST; #through;
+        case .NEAREST_MIPMAP_LINEAR; #through;
+        case .LINEAR_MIPMAP_LINEAR;
+            log_error("Got a mipmap filter from GLTF. Not sure how to use it yet, defaulted to nearest");
+            return .Nearest;
+    }
 }
 
 #import "Basic";

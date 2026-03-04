@@ -48,6 +48,10 @@ init_renderer :: (
     renderer.default_base_color_texture = create_base_color_texture(
         renderer,
         path_join(#filepath, "assets/textures/default.png",, temp),
+        .ClampToEdge,
+        .ClampToEdge,
+        .Linear,
+        .Nearest,
     );
 
     Window.add_framebuffer_size_change_handler(

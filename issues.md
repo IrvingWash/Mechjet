@@ -1,2 +1,3 @@
 - [] Support `image_data` from `.glb` files.
 - [] Fix draw batches key
+- [] Add mipmapping
