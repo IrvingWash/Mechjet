@@ -22,8 +22,12 @@ Mesh :: struct {
 }
 
 Material :: struct {
-    base_color_factor:  Vector4 = { 1, 1, 1, 1 };
     base_color_texture: Texture;
+    params:             Params;
+
+    Params :: struct {
+        base_color_factor:  Vector4 = { 1, 1, 1, 1 };
+    } @GPU
 }
 
 Vertex :: struct {
@@ -34,7 +38,7 @@ Vertex :: struct {
     POSITION_OFFSET :: 0;
     NORMAL_OFFSET   :: size_of(Vector3);
     UV_OFFSET       :: size_of(Vector3) * 2;
-}
+} @GPU
 
 // Intermediate representation between a format (GLTF) and the data needed by the renderer
 Model_Creation_Data :: struct {

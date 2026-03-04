@@ -170,12 +170,12 @@ Batch :: struct {
 
 Instance :: struct {
     column_major_transform: Matrix4;
-}
+} @GPU
 
 Transforms :: struct {
     projection: Matrix4;
     view:       Matrix4;
-}
+} @GPU
 
 Uniform :: struct {
     bind_group:        WGPU.BindGroup;
@@ -386,7 +386,7 @@ create_material_bind_group_layout :: (device: WGPU.Device) -> WGPU.BindGroupLayo
             buffer     = WGPU.BufferBindingLayout.{
                 type             = .Uniform,
                 hasDynamicOffset = xx false,
-                minBindingSize   = size_of(Vector4), // @no_merge @Todo
+                minBindingSize   = size_of(Material.Params),
             },
         },
         {
@@ -424,7 +424,7 @@ create_material_uniform :: (renderer: *Renderer, material: Material, bind_group_
     { // Buffer
         buffer_descriptor := WGPU.BufferDescriptor.{
             usage            = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
-            size             = WGPU.to_copy_buffer_alignment(size_of(Vector4)), // @no_merge @Todo
+            size             = WGPU.to_copy_buffer_alignment(size_of(Material.Params)),
             mappedAtCreation = xx false,
         };
 
@@ -434,8 +434,8 @@ create_material_uniform :: (renderer: *Renderer, material: Material, bind_group_
             queue,
             uniform.buffer,
             0,
-            *material.base_color_factor,
-            size_of(Vector4), // @no_merge @Todo
+            *material.params.base_color_factor,
+            size_of(Material.Params),
         );
     }
 
@@ -449,7 +449,7 @@ create_material_uniform :: (renderer: *Renderer, material: Material, bind_group_
                 binding = 0,
                 buffer  = uniform.buffer,
                 offset  = 0,
-                size    = size_of(Vector4), // @no_merge @Todo
+                size    = size_of(Material.Params),
             },
             {
                 binding = 1,

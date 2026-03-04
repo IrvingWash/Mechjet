@@ -129,14 +129,15 @@ convert_gltf_scene_to_model_creation_data :: (
     { // Meshes
         array_resize(*model_creation_data.meshes, gltf_scene.meshes.count);
         for gltf_mesh, gltf_mesh_index: gltf_scene.meshes {
+            mesh := *model_creation_data.meshes[gltf_mesh_index];
+
             { // Vertices
                 array_resize(
-                    *model_creation_data.meshes[gltf_mesh_index].vertices,
+                    *mesh.vertices,
                     gltf_mesh.vertices.count,
                 );
                 for gltf_vertex, gltf_vertex_index: gltf_mesh.vertices {
-                    model_creation_data.meshes[gltf_mesh_index]
-                    .vertices[gltf_vertex_index] = {
+                    mesh.vertices[gltf_vertex_index] = {
                         position = gltf_vertex.position,
                         normal = gltf_vertex.normal,
                         uv = gltf_vertex.uv,
@@ -146,12 +147,11 @@ convert_gltf_scene_to_model_creation_data :: (
 
             { // Indices
                 array_resize(
-                    *model_creation_data.meshes[gltf_mesh_index].indices,
+                    *mesh.indices,
                     gltf_mesh.indices.count,
                 );
                 for gltf_index, gltf_index_index: gltf_mesh.indices {
-                    model_creation_data.meshes[gltf_mesh_index].
-                    indices[gltf_index_index] = gltf_index;
+                    mesh.indices[gltf_index_index] = gltf_index;
                 }
             }
 
@@ -159,11 +159,10 @@ convert_gltf_scene_to_model_creation_data :: (
             if gltf_mesh.material_index != -1 {
                 gltf_material := gltf_scene.materials[gltf_mesh.material_index];
 
-                model_creation_data.meshes[gltf_mesh_index].material.base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
+                mesh.material.params
+                    .base_color_factor = gltf_material.pbr_metallic_roughness.base_color_factor;
 
                 { // Texture
-                    // @Todo @Robustness support image_data from GLB. It's unclear how to key them in the table though
-
                     image_path := gltf_material.pbr_metallic_roughness.base_color_texture.image_path;
                     if !image_path {
                         continue;
@@ -176,7 +175,7 @@ convert_gltf_scene_to_model_creation_data :: (
                         table_set(*storage.textures, copy_string(image_path), texture);
                     }
 
-                    model_creation_data.meshes[gltf_mesh_index].material.base_color_texture = texture;
+                    mesh.material.base_color_texture = texture;
                 }
             }
         }

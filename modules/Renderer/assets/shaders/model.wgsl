@@ -45,12 +45,12 @@ fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOu
 
 
 
-struct Material {
+struct MaterialParams {
     base_color_factor: vec4f,
 }
 
 @group(1) @binding(0)
-var<uniform> u_material: Material;
+var<uniform> u_material_params: MaterialParams;
 
 @group(1) @binding(1)
 var base_color_texture: texture_2d<f32>;
@@ -63,5 +63,5 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         base_color_texture,
         base_color_sampler,
         input.uv,
-    ) * u_material.base_color_factor;
+    ) * u_material_params.base_color_factor;
 }
