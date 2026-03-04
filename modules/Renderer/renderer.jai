@@ -45,7 +45,7 @@ init_renderer :: (
         renderer.transforms_bind_group_layout,
     );
 
-    renderer.default_base_color_texture = create_base_color_texture(
+    ok, renderer.default_base_color_texture = create_base_color_texture(
         renderer,
         path_join(#filepath, "assets/textures/default.png",, temp),
         .ClampToEdge,
@@ -53,6 +53,7 @@ init_renderer :: (
         .Linear,
         .Nearest,
     );
+    assert(ok, "Failed to create default base color texture");
 
     Window.add_framebuffer_size_change_handler(
         renderer.window,

@@ -68,7 +68,11 @@ get_model_handle_from_storage :: (handle: Asset_Storage_Handle, renderer: Render
     }
     defer GLTF.release_scene(*gltf_scene);
 
-    model_creation_data := convert_gltf_scene_to_model_creation_data(storage, renderer, gltf_scene);
+    ok =, model_creation_data := convert_gltf_scene_to_model_creation_data(storage, renderer, gltf_scene);
+    if !ok {
+        log_error("Failed to convert GLTF from '%'", absolute_path);
+        return false, -1;
+    }
     defer Renderer.destroy_model_creation_data(*model_creation_data);
     model := Renderer.create_model(renderer, model_creation_data);
 
@@ -106,7 +110,7 @@ convert_gltf_scene_to_model_creation_data :: (
     storage: *Asset_Storage,
     renderer: Renderer.Renderer_Handle,
     gltf_scene: GLTF.Scene,
-) -> Renderer.Model_Creation_Data {
+) -> ok: bool, Renderer.Model_Creation_Data {
     model_creation_data: Renderer.Model_Creation_Data;
 
     { // Nodes
@@ -157,19 +161,23 @@ convert_gltf_scene_to_model_creation_data :: (
 
             // Material
             if gltf_mesh.material_index != -1 {
-                mesh.material = convert_gltf_material(storage, renderer, gltf_scene.materials[gltf_mesh.material_index]);
+                ok:, mesh.material = convert_gltf_material(storage, renderer, gltf_scene.materials[gltf_mesh.material_index]);
+                if !ok {
+                    log_error("Failed to convert GLTF material");
+                    return false, model_creation_data;
+                }
             }
         }
     }
 
-    return model_creation_data;
+    return true, model_creation_data;
 }
 
 convert_gltf_material :: (
     storage: *Asset_Storage,
     renderer: *Renderer.Renderer_Handle,
     gltf_material: GLTF.Material,
-) -> Renderer.Material {
+) -> ok: bool, Renderer.Material {
     material: Renderer.Material;
 
     { // PBR
@@ -184,7 +192,7 @@ convert_gltf_material :: (
 
             ok, texture := table_find(*storage.textures, gltf_base_color_texture.image_path);
             if !ok {
-                texture = Renderer.create_base_color_texture(
+                ok:, texture = Renderer.create_base_color_texture(
                     renderer,
                     gltf_base_color_texture.image_path,
                     convert_gltf_wrap_mode(gltf_base_color_texture.wrap_s),
@@ -192,6 +200,10 @@ convert_gltf_material :: (
                     convert_gltf_mag_filter(gltf_base_color_texture.mag_filter),
                     convert_gltf_min_filter(gltf_base_color_texture.min_filter),
                 );
+                if !ok {
+                    log_error("Failed to create base color texture");
+                    return false, material;
+                }
 
                 table_set(*storage.textures, copy_string(gltf_base_color_texture.image_path), texture);
             }
@@ -200,7 +212,7 @@ convert_gltf_material :: (
         }
     }
 
-    return material;
+    return true, material;
 }
 
 convert_gltf_wrap_mode :: (gltf_wrap_mode: GLTF.Material.Texture.Wrap_Mode) -> Renderer.Address_Mode {

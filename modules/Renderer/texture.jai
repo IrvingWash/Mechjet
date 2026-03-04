@@ -19,7 +19,7 @@ create_base_color_texture :: (
     wrap_t: Address_Mode,
     mag_filter: Filter_Mode,
     min_filter: Filter_Mode,
-) -> Texture {
+) -> ok: bool, Texture {
     renderer := cast(*Renderer, handle);
     using renderer.wgpu_toolbox;
 
@@ -28,7 +28,11 @@ create_base_color_texture :: (
     texture.kind = .BASE_COLOR;
 
     { // Texture
-        image := load_image(path);
+        ok, image := load_image(path);
+        if !ok {
+            log_error("Failed to load image from '%'", path);
+            return false, texture;
+        }
         defer release_image(image.data);
 
         texture_descriptor := WGPU.TextureDescriptor.{
@@ -102,7 +106,7 @@ create_base_color_texture :: (
         texture.sampler = WGPU.DeviceCreateSampler(device, *sampler_descriptor);
     }
 
-    return texture;
+    return true, texture;
 }
 
 destroy_texture :: (texture: Texture) {
@@ -122,12 +126,15 @@ Image :: struct {
     data:          *u8;
 }
 
-load_image :: (path: string) -> Image {
+load_image :: (path: string) -> ok: bool, Image {
     width, height, channel_count: s32;
     data := stbi_load(temp_c_string(path), *width, *height, *channel_count, 4);
-    assert(data != null); // @no_merge @Todo handle more graecully!
+    if !data {
+        log_error("Failed to load image data from '%'", path);
+        return false, {};
+    }
 
-    return Image.{
+    return true, Image.{
         width         = cast(u32, width),
         height        = cast(u32, height),
         channel_count = cast(u32, channel_count),
