@@ -1,3 +1,7 @@
+Key :: Window.Key;
+
+
+
 #scope_module
 
 Input_State_Handle :: #type *void;

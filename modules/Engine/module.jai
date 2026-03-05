@@ -83,6 +83,26 @@ resolve_model_handle :: inline (handle: Model_Handle) -> Renderer.Model {
 // Math
 // =============================================================================
 
+get_scroll_delta :: inline () -> Vector2 {
+    return get_scroll_delta(engine.input_state);
+}
+
+get_cursor_delta :: inline () -> Vector2 {
+    return get_cursor_delta(engine.input_state);
+}
+
+is_key_pressed :: inline (key: Key) -> bool {
+    return is_key_pressed(engine.input_state, key);
+}
+
+is_key_held :: inline (key: Key) -> bool {
+    return is_key_held(engine.input_state, key);
+}
+
+// =============================================================================
+// Math
+// =============================================================================
+
 deg_to_rad :: (degrees: float) -> float {
     return degrees * PI_BY_HALF_CIRCLE;
 }
