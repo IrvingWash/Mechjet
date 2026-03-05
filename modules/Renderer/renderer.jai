@@ -607,9 +607,9 @@ create_model_render_pipeline :: (
         format              = .Depth32Float,
         depthWriteEnabled   = xx true,
         depthCompare        = .Less,
-        depthBias           = 0, // @no_merge @Todo
-        depthBiasSlopeScale = 0, // @no_merge @Todo
-        depthBiasClamp      = 0, // @no_merge @Todo
+        depthBias           = 0,
+        depthBiasSlopeScale = 0,
+        depthBiasClamp      = 0,
     };
 
     // =========================================================================
