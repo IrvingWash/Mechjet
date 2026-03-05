@@ -135,7 +135,7 @@ create_depth_texture :: (renderer: *Renderer, size: WGPU.Extent3D) -> Texture {
             size            = size,
             format          = .Depth32Float,
             mipLevelCount   = 1,
-            sampleCOunt     = 1,
+            sampleCount     = 1,
             viewFormatCount = 0,
             viewFormats     = null,
         };
