@@ -7,6 +7,7 @@ Texture :: struct {
 
 Texture_Kind :: enum {
     BASE_COLOR;
+    DEPTH;
 }
 
 Address_Mode :: WGPU.AddressMode;
@@ -113,6 +114,68 @@ destroy_texture :: (texture: Texture) {
     WGPU.SamplerRelease(texture.sampler);
     WGPU.TextureViewRelease(texture.view);
     WGPU.TextureRelease(texture.texture);
+}
+
+
+
+#scope_module
+
+create_depth_texture :: (renderer: *Renderer, size: WGPU.Extent3D) -> Texture {
+    using renderer.wgpu_toolbox;
+
+    texture: Texture;
+
+    texture.kind = .DEPTH;
+
+    { // Texture
+        descriptor: WGPU.TextureDescriptor = {
+            usage           = WGPU.WGPUTextureUsage_TextureBinding
+                | WGPU.WGPUTextureUsage_RenderAttachment,
+            dimension       = ._2D,
+            size            = size,
+            format          = .Depth32Float,
+            mipLevelCount   = 1,
+            sampleCount     = 1,
+            viewFormatCount = 0,
+            viewFormats     = null,
+        };
+
+        texture.texture = WGPU.DeviceCreateTexture(device, *descriptor);
+    }
+
+    { // View
+        descriptor: WGPU.TextureViewDescriptor = {
+            format          = .Depth32Float,
+            dimension       = ._2D,
+            baseMipLevel    = 0,
+            mipLevelCount   = 1,
+            baseArrayLayer  = 0,
+            arrayLayerCount = 1,
+            aspect          = .All,
+            usage           = WGPU.WGPUTextureUsage_None,
+        };
+
+        texture.view = WGPU.TextureCreateView(texture.texture, *descriptor);
+    }
+
+    { // Sampler
+        descriptor: WGPU.SamplerDescriptor = {
+            addressModeU  = .ClampToEdge,
+            addressModeV  = .ClampToEdge,
+            addressModeW  = .ClampToEdge,
+            magFilter     = .Linear,
+            minFilter     = .Linear,
+            mipmapFilter  = .Nearest,
+            lodMinClamp   = 0,
+            lodMaxClamp   = 100,
+            compare       = .LessEqual,
+            maxAnisotropy = 1,
+        };
+
+        texture.sampler = WGPU.DeviceCreateSampler(device, *descriptor);
+    }
+
+    return texture;
 }
 
 

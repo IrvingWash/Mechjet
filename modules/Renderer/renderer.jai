@@ -55,6 +55,15 @@ init_renderer :: (
     );
     assert(ok, "Failed to create default base color texture");
 
+    renderer.depth_texture = create_depth_texture(
+        renderer,
+        {
+            width              = surface_configuration.width,
+            height             = surface_configuration.height,
+            depthOrArrayLayers = 1,
+        },
+    );
+
     Window.add_framebuffer_size_change_handler(
         renderer.window,
         handle_framebuffer_size_change,
@@ -160,6 +169,7 @@ Renderer :: struct {
     batches: Table(u64, Batch);
 
     default_base_color_texture: Texture;
+    depth_texture:              Texture;
 }
 
 
@@ -234,7 +244,7 @@ do_main_pass :: (
 ) {
     using renderer.wgpu_toolbox;
 
-    render_pass_color_attachment: WGPU.RenderPassColorAttachment = {
+    color_attachment: WGPU.RenderPassColorAttachment = {
         view       = texture_view,
         loadOp     = .Clear,
         storeOp    = .Store,
@@ -242,9 +252,18 @@ do_main_pass :: (
         depthSlice = WGPU.DEPTH_SLICE_UNDEFINED,
     };
 
+    depth_stencil_attachment: WGPU.RenderPassDepthStencilAttachment = {
+        view            = renderer.depth_texture.view,
+        depthLoadOp     = .Clear,
+        depthStoreOp    = .Store,
+        depthClearValue = 1,
+        depthReadOnly   = xx false,
+    };
+
     render_pass_descriptor: WGPU.RenderPassDescriptor = {
-        colorAttachmentCount = 1,
-        colorAttachments     = *render_pass_color_attachment,
+        colorAttachmentCount   = 1,
+        colorAttachments       = *color_attachment,
+        depthStencilAttachment = *depth_stencil_attachment,
     };
 
     render_pass_encoder := WGPU.CommandEncoderBeginRenderPass(command_encoder, *render_pass_descriptor);
@@ -581,6 +600,19 @@ create_model_render_pipeline :: (
     };
 
     // =========================================================================
+    // Depth stencil state
+    // =========================================================================
+
+    depth_stencil_state: WGPU.DepthStencilState = {
+        format              = .Depth32Float,
+        depthWriteEnabled   = xx true,
+        depthCompare        = .Less,
+        depthBias           = 0,
+        depthBiasSlopeScale = 0,
+        depthBiasClamp      = 0,
+    };
+
+    // =========================================================================
     // Multisample state
     // =========================================================================
 
@@ -628,12 +660,13 @@ create_model_render_pipeline :: (
     defer WGPU.PipelineLayoutRelease(pipeline_layout);
 
     descriptor: WGPU.RenderPipelineDescriptor = {
-        label       = WGPU.to_string_view("Model Render Pipeline"),
-        layout      = pipeline_layout,
-        vertex      = vertex_state,
-        primitive   = primitive_state,
-        multisample = multisample_state,
-        fragment    = *fragment_state,
+        label        = WGPU.to_string_view("Model Render Pipeline"),
+        layout       = pipeline_layout,
+        vertex       = vertex_state,
+        primitive    = primitive_state,
+        depthStencil = *depth_stencil_state,
+        multisample  = multisample_state,
+        fragment     = *fragment_state,
     };
 
     return WGPU.DeviceCreateRenderPipeline(device, *descriptor);
@@ -680,6 +713,16 @@ handle_framebuffer_size_change :: (width: u32, height: u32, data: *void) {
     using renderer.wgpu_toolbox;
 
     renderer.wgpu_toolbox.surface_configuration = configure_wgpu_surface(surface, device, surface_capabilities, width, height);
+
+    destroy_texture(renderer.depth_texture);
+    renderer.depth_texture = create_depth_texture(
+        renderer,
+        {
+            width              = surface_configuration.width,
+            height             = surface_configuration.height,
+            depthOrArrayLayers = 1,
+        },
+    );
 }
 
 #import "Basic";

@@ -1,4 +1,5 @@
-- [] Enable depth testing
-- [] Support `image_data` from `.glb` files.
-- [] Fix draw batches key
-- [] Add mipmapping
+- [ ] Support `image_data` from `.glb` files.
+- [ ] Fix draw batches key
+- [ ] Add mipmapping
+
+- [x] Enable depth testing
