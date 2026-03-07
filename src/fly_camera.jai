@@ -31,7 +31,7 @@ look_at :: (camera: *Fly_Camera, target: Vector3) {
 }
 
 update_camera :: (camera: *Fly_Camera) {
-    dt := 0.01; // @no_merge @Todo @Hardcoded
+    dt := Engine.get_delta_time();
 
     move_camera(camera, dt);
     zoom_camera(camera);
