@@ -18,6 +18,8 @@ init :: (
 
     engine.input_state = init_input(engine.window);
 
+    engine.time_state = init_time();
+
     ok, engine.renderer = Renderer.init_renderer(engine.window, clear_color);
     if !ok {
         log_error("Failed to initialize renderer");
@@ -34,12 +36,16 @@ deinit :: () {
 
     Renderer.deinit_renderer(engine.renderer);
 
+    deinit_time(engine.time_state);
+
     deinit_input(engine.input_state);
 
     Window.destroy_window(engine.window);
 }
 
 begin_frame :: () {
+    update_time(engine.time_state);
+
     process_input(engine.input_state);
 }
 
@@ -52,7 +58,7 @@ should_quit :: inline () -> bool {
 // =============================================================================
 
 // @Todo maybe call this in begin frame?
-start_drawing :: inline (camera: $T/interface Renderer.Render_Camera) {
+start_drawing :: inline (camera: Renderer.Render_Camera) {
     Renderer.start_drawing(engine.renderer, camera);
 }
 
@@ -80,7 +86,7 @@ resolve_model_handle :: inline (handle: Model_Handle) -> Renderer.Model {
 }
 
 // =============================================================================
-// Math
+// Input
 // =============================================================================
 
 get_scroll_delta :: inline () -> Vector2 {
@@ -100,6 +106,14 @@ is_key_held :: inline (key: Key) -> bool {
 }
 
 // =============================================================================
+// Time
+// =============================================================================
+
+get_delta_time :: inline () -> float {
+    return get_delta_time(engine.time_state);
+}
+
+// =============================================================================
 // Math
 // =============================================================================
 
@@ -116,6 +130,7 @@ PI_BY_HALF_CIRCLE :: PI / 180.0;
 Engine :: struct {
     window: Window.Window_Handle;
     input_state: Input_State_Handle;
+    time_state:  Time_State_Handle;
     renderer: Renderer.Renderer_Handle;
     asset_storage: Asset_Storage_Handle;
 }
@@ -129,3 +144,4 @@ Renderer :: #import "Renderer";
 
 #load "input.jai";
 #load "asset_storage.jai";
+#load "time.jai";

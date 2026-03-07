@@ -111,7 +111,7 @@ deinit_renderer :: (handle: Renderer_Handle) {
     free(renderer);
 }
 
-start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
+start_drawing :: (handle: Renderer_Handle, camera: Render_Camera) {
     renderer := cast(*Renderer, handle);
 
     update_transforms(renderer, camera);
@@ -706,7 +706,7 @@ create_model_render_pipeline :: (
     return WGPU.DeviceCreateRenderPipeline(device, *descriptor);
 }
 
-update_transforms :: (renderer: *Renderer, camera: $T/interface Render_Camera) {
+update_transforms :: (renderer: *Renderer, camera: Render_Camera) {
     using renderer.wgpu_toolbox;
 
     width  := surface_configuration.width;
