@@ -121,12 +121,12 @@ start_drawing :: (handle: Renderer_Handle, camera: $T/interface Render_Camera) {
     }
 }
 
-draw_model :: (handle: Renderer_Handle, model: Model, transform: Matrix4) {
+draw_model :: (handle: Renderer_Handle, model: Model, transform: Matrix4, tint: Vector4) {
     renderer := cast(*Renderer, handle);
 
     for node: model.nodes {
         if node.parent_index == -1 {
-            schedule_node_for_drawing(renderer, node, model, transform);
+            schedule_node_for_drawing(renderer, node, model, transform, tint);
         }
     }
 }
@@ -202,6 +202,8 @@ Batch :: struct {
 
 Instance :: struct {
     column_major_transform: Matrix4;
+
+    tint: Vector4 = { 1, 1, 1, 1 };
 } @GPU
 
 Transforms :: struct {
@@ -214,7 +216,7 @@ Uniform :: struct {
     buffer:            WGPU.Buffer;
 }
 
-schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4) {
+schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4, tint: Vector4) {
     using renderer.wgpu_toolbox;
 
     transform := parent_transform * node.local_transform;
@@ -225,6 +227,7 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
 
             instance: Instance = {
                 column_major_transform = transpose(transform),
+                tint = tint,
             };
 
             batch := table_find_pointer(*renderer.batches, xx mesh.vertex_buffer);
@@ -249,7 +252,7 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
     }
 
     for child_index: node.children_indices {
-        schedule_node_for_drawing(renderer, model.nodes[child_index], model, transform);
+        schedule_node_for_drawing(renderer, model.nodes[child_index], model, transform, tint);
     }
 }
 
@@ -591,6 +594,13 @@ create_model_render_pipeline :: (
             format         = .Float32x4,
             offset         = size_of(Vector4) * 3,
             shaderLocation = 6,
+        },
+
+        // Tint
+        WGPU.VertexAttribute.{
+            format         = .Float32x4,
+            offset         = size_of(Matrix4),
+            shaderLocation = 7,
         },
     ];
 
