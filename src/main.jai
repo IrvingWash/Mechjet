@@ -39,7 +39,7 @@ main :: () {
 
         Engine.start_drawing(
             Camera.{
-                position = { 0, 15, 15 },
+                position = { 0, 0, 15 },
                 target   = { 0, 0, 0, },
                 fov_radians = Engine.deg_to_rad(60),
                 z_near = 0.1,
