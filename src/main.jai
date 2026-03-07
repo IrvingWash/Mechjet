@@ -8,15 +8,7 @@
 #import "Math";
 Engine :: #import "Engine"()(DEBUG = DEBUG);
 
-Camera :: struct {
-    position: Vector3;
-    target:   Vector3;
-    up:       Vector3 = { 0, 1, 0 };
-
-    fov_radians: float;
-    z_near: float;
-    z_far:  float;
-}
+#load "fly_camera.jai";
 
 main :: () {
     #if DEBUG {
@@ -29,6 +21,8 @@ main :: () {
     assert(ok);
     defer Engine.deinit();
 
+    fly_camera: Fly_Camera;
+
     ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
     assert(ok);
     ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree/scene.gltf");
@@ -37,15 +31,16 @@ main :: () {
     while !Engine.should_quit() {
         Engine.begin_frame();
 
-        Engine.start_drawing(
-            Camera.{
-                position = { 0, 0, 15 },
-                target   = { 0, 0, 0, },
-                fov_radians = Engine.deg_to_rad(60),
-                z_near = 0.1,
-                z_far = 100,
-            },
-        );
+        update_camera(*fly_camera);
+
+        Engine.start_drawing({
+            position    = fly_camera.position,
+            target      = fly_camera.position + fly_camera.front,
+            up          = fly_camera.up,
+            fov_radians = fly_camera.fov,
+            z_near = 0.1,
+            z_far  = 1000,
+        });
 
         Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.5, 0.5, 0.5 }), { 1, 1, 1, 1 });
         Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 3, 3, 3 }), { 1, 1, 1, 1 });

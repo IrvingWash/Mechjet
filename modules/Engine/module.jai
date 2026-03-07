@@ -52,7 +52,7 @@ should_quit :: inline () -> bool {
 // =============================================================================
 
 // @Todo maybe call this in begin frame?
-start_drawing :: inline (camera: $T/interface Renderer.Render_Camera) {
+start_drawing :: inline (camera: Renderer.Render_Camera) {
     Renderer.start_drawing(engine.renderer, camera);
 }
 
