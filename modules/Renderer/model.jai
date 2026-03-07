@@ -23,6 +23,7 @@ Mesh :: struct {
 
 Material :: struct {
     base_color_texture: Texture;
+    double_sided:       bool;
     params:             Params;
 
     Params :: struct {

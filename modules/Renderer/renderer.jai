@@ -31,13 +31,23 @@ init_renderer :: (
     renderer.transforms_bind_group_layout = create_transforms_bind_group_layout(device);
     renderer.material_bind_group_layout = create_material_bind_group_layout(device);
 
-    renderer.model_render_pipeline = create_model_render_pipeline(
+    renderer.pipelines.single_sided_model = create_model_render_pipeline(
         device,
         surface_configuration.format,
         .[
             renderer.transforms_bind_group_layout,
             renderer.material_bind_group_layout,
         ],
+        cull_faces = true,
+    );
+    renderer.pipelines.double_sided_model = create_model_render_pipeline(
+        device,
+        surface_configuration.format,
+        .[
+            renderer.transforms_bind_group_layout,
+            renderer.material_bind_group_layout,
+        ],
+        cull_faces = false,
     );
 
     renderer.transforms_uniform = create_transforms_uniform(
@@ -77,6 +87,7 @@ deinit_renderer :: (handle: Renderer_Handle) {
     renderer := cast(*Renderer, handle);
 
     destroy_texture(renderer.default_base_color_texture);
+    destroy_texture(renderer.depth_texture);
 
     for batch: renderer.batches {
         array_free(batch.instances);
@@ -88,7 +99,8 @@ deinit_renderer :: (handle: Renderer_Handle) {
 
     Window.remove_framebuffer_size_change_handler(renderer.window, handle_framebuffer_size_change);
 
-    WGPU.RenderPipelineRelease(renderer.model_render_pipeline);
+    WGPU.RenderPipelineRelease(renderer.pipelines.single_sided_model);
+    WGPU.RenderPipelineRelease(renderer.pipelines.double_sided_model);
     WGPU.BindGroupLayoutRelease(renderer.transforms_bind_group_layout);
     WGPU.BindGroupLayoutRelease(renderer.material_bind_group_layout);
 
@@ -159,7 +171,7 @@ Renderer :: struct {
 
     transforms: Transforms;
 
-    model_render_pipeline: WGPU.RenderPipeline;
+    pipelines: Pipelines;
 
     transforms_bind_group_layout: WGPU.BindGroupLayout;
     material_bind_group_layout: WGPU.BindGroupLayout;
@@ -176,11 +188,16 @@ Renderer :: struct {
 
 #scope_file
 
+Pipelines :: struct {
+    single_sided_model: WGPU.RenderPipeline;
+    double_sided_model: WGPU.RenderPipeline;
+}
+
 Batch :: struct {
-    mesh: Mesh;
-    instances: [..]Instance;
-    instance_buffer: WGPU.Buffer;
-    material_uniform:     Uniform;
+    mesh:             Mesh;
+    instances:        [..]Instance;
+    instance_buffer:  WGPU.Buffer;
+    material_uniform: Uniform;
 }
 
 Instance :: struct {
@@ -269,13 +286,17 @@ do_main_pass :: (
     render_pass_encoder := WGPU.CommandEncoderBeginRenderPass(command_encoder, *render_pass_descriptor);
     defer WGPU.RenderPassEncoderRelease(render_pass_encoder);
 
-    WGPU.RenderPassEncoderSetPipeline(render_pass_encoder, renderer.model_render_pipeline);
-
     WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms_uniform.bind_group, 0, null);
 
     for *batch: renderer.batches {
         if batch.instances.count == 0 {
             continue;
+        }
+
+        if batch.mesh.material.double_sided {
+            WGPU.RenderPassEncoderSetPipeline(render_pass_encoder, renderer.pipelines.double_sided_model);
+        } else {
+            WGPU.RenderPassEncoderSetPipeline(render_pass_encoder, renderer.pipelines.single_sided_model);
         }
 
         batch_size := batch.instances.count * size_of(Instance);
@@ -508,6 +529,7 @@ create_model_render_pipeline :: (
     device: WGPU.Device,
     texture_format: WGPU.TextureFormat,
     bind_group_layouts: []WGPU.BindGroupLayout,
+    cull_faces: bool,
 ) -> WGPU.RenderPipeline {
     ok, shader_module := create_wgpu_shader_module(
         device,
@@ -596,7 +618,9 @@ create_model_render_pipeline :: (
         topology         = .TriangleList,
         stripIndexFormat = .Undefined,
         frontFace        = .CCW,
-        cullMode         = .Back,
+        cullMode         = ifx cull_faces
+            then.Back
+            else .None,
     };
 
     // =========================================================================

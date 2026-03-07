@@ -180,6 +180,8 @@ convert_gltf_material :: (
 ) -> ok: bool, Renderer.Material {
     material: Renderer.Material;
 
+    material.double_sided = gltf_material.double_sided;
+
     { // PBR
         gltf_pbr := gltf_material.pbr_metallic_roughness;
 
