@@ -25,7 +25,7 @@ main :: () {
         position = {
             x = -1.4,
             y = 3.8,
-            z = 20,
+            z = 14,
         },
     };
 
@@ -57,7 +57,7 @@ main :: () {
         });
 
         Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.2, 0.2, 0.2 }), { 1, 1, 1, 1 });
-        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 3, 3, 3 }), { 1, 1, 1, 1 });
+        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 1, 1, 1 }), { 1, 1, 1, 1 });
         Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({ 1, 0, 1 }), { 1, 1, 1, 1 });
 
         Engine.end_drawing();
