@@ -21,7 +21,13 @@ main :: () {
     assert(ok);
     defer Engine.deinit();
 
-    fly_camera: Fly_Camera;
+    fly_camera: Fly_Camera = {
+        position = {
+            x = -1.4,
+            y = 3.8,
+            z = 20,
+        },
+    };
 
     ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
     assert(ok);
