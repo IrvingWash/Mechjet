@@ -17,7 +17,7 @@ main :: () {
 
     setup_formatting();
 
-    ok := Engine.init("Mechjet", 800, 600);
+    ok := Engine.init("Mechjet", 800, 600, { 0, 0, 0, 1 });
     assert(ok);
     defer Engine.deinit();
 
@@ -34,9 +34,9 @@ main :: () {
     ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree/scene.gltf");
     assert(ok);
 
-    Engine.set_ambient_light({ color = { 0.1, 0.1, 0.1 }});
+    Engine.set_ambient_light({ color = { 0.01, 0.01, 0.01 }});
     Engine.set_directional_light({
-        color = { 1, 1, 1 },
+        color = { 0.1, 0.1, 0.5 },
         direction = { 0, -1, -1 },
     });
 
