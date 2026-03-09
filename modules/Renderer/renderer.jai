@@ -10,10 +10,7 @@ Render_Camera :: struct {
     z_far:  float;
 }
 
-init_renderer :: (
-    window: Window.Window_Handle,
-    clear_color: Vector4,
-) -> ok: bool, Renderer_Handle {
+init_renderer :: (window: Window.Window_Handle, clear_color: Vector4) -> ok: bool, Renderer_Handle {
     renderer := New(Renderer);
 
     renderer.window = window;
@@ -202,7 +199,8 @@ Batch :: struct {
 }
 
 Instance :: struct {
-    column_major_transform: Matrix4;
+    column_major_transform:        Matrix4;
+    column_major_normal_transform: Matrix3;
 
     tint: Vector4 = { 1, 1, 1, 1 };
 } @GPU
@@ -229,8 +227,11 @@ schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, par
         for node.first_mesh_index..(cast(s64, node.first_mesh_index) + node.mesh_count - 1) {
             mesh := model.meshes[it];
 
+            column_major_model_transform := transpose(transform);
+
             instance: Instance = {
-                column_major_transform = transpose(transform),
+                column_major_transform = column_major_model_transform,
+                column_major_normal_transform = adjoint_transpose(make_matrix3(column_major_model_transform)),
                 tint = tint,
             };
 
@@ -596,11 +597,28 @@ create_model_render_pipeline :: (
             shaderLocation = 6,
         },
 
+        // Normal transform 3x3 matrix
+        WGPU.VertexAttribute.{
+            format          = .Float32x3,
+            offset          = size_of(Matrix4),
+            shaderLocation = 7,
+        },
+        WGPU.VertexAttribute.{
+            format          = .Float32x3,
+            offset          = size_of(Matrix4) + size_of(Vector3),
+            shaderLocation = 8,
+        },
+        WGPU.VertexAttribute.{
+            format          = .Float32x3,
+            offset          = size_of(Matrix4) + size_of(Vector3) * 2,
+            shaderLocation = 9,
+        },
+
         // Tint
         WGPU.VertexAttribute.{
             format         = .Float32x4,
-            offset         = size_of(Matrix4),
-            shaderLocation = 7,
+            offset         = size_of(Matrix4) + size_of(Matrix3),
+            shaderLocation = 10,
         },
     ];
 

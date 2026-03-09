@@ -10,12 +10,18 @@ struct VertexInput {
 }
 
 struct InstanceInput {
+    // Column-major matrix
     @location(3) transform_column_1: vec4f,
     @location(4) transform_column_2: vec4f,
     @location(5) transform_column_3: vec4f,
     @location(6) transform_column_4: vec4f,
 
-    @location(7) tint: vec4f,
+    // Column-major matrix
+    @location(7) normal_column_1: vec3f,
+    @location(8) normal_column_2: vec3f,
+    @location(9) normal_column_3: vec3f,
+
+    @location(10) tint: vec4f,
 }
 
 struct VertexOutput {
@@ -30,8 +36,6 @@ var<uniform> u_transforms: Transforms;
 
 @vertex
 fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOutput {
-    var output: VertexOutput;
-
     let model_transform = mat4x4f(
         instance_input.transform_column_1,
         instance_input.transform_column_2,
@@ -39,10 +43,24 @@ fn vs_main(vertex_input: VertexInput, instance_input: InstanceInput) -> VertexOu
         instance_input.transform_column_4,
     );
 
-    output.clip_position = u_transforms.projection * u_transforms.view * model_transform * vec4f(vertex_input.position, 1);
-    output.normal        = vertex_input.normal;
-    output.uv            = vertex_input.uv;
-    output.tint          = instance_input.tint;
+    let normal_transform = mat3x3f(
+        instance_input.normal_column_1,
+        instance_input.normal_column_2,
+        instance_input.normal_column_3,
+    );
+
+    var output: VertexOutput;
+
+    output.clip_position = u_transforms.projection
+        * u_transforms.view
+        * model_transform
+        * vec4f(vertex_input.position, 1);
+
+    output.normal = normal_transform * vertex_input.normal;
+
+    output.uv     = vertex_input.uv;
+
+    output.tint   = instance_input.tint;
 
     return output;
 }
@@ -55,7 +73,6 @@ struct MaterialParams {
 
 @group(1) @binding(0)
 var<uniform> u_material_params: MaterialParams;
-
 @group(1) @binding(1)
 var base_color_texture: texture_2d<f32>;
 @group(1) @binding(2)
