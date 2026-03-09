@@ -33,6 +33,8 @@ main :: () {
     assert(ok);
     ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree/scene.gltf");
     assert(ok);
+    ok =, mech_handle := Engine.get_model_handle("modules/GLTF/assets/mech/mech.gltf");
+    assert(ok);
 
     Engine.set_ambient_light({ color = { 0.01, 0.01, 0.01 }});
     Engine.set_directional_light({
@@ -54,8 +56,9 @@ main :: () {
             z_far  = 1000,
         });
 
-        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.5, 0.5, 0.5 }), { 1, 1, 1, 1 });
+        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.2, 0.2, 0.2 }), { 1, 1, 1, 1 });
         Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 3, 3, 3 }), { 1, 1, 1, 1 });
+        Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({ 1, 0, 1 }), { 1, 1, 1, 1 });
 
         Engine.end_drawing();
 
