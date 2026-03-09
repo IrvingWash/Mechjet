@@ -34,6 +34,12 @@ main :: () {
     ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree/scene.gltf");
     assert(ok);
 
+    Engine.set_ambient_light({ color = { 0.1, 0.1, 0.1 }});
+    Engine.set_directional_light({
+        color = { 1, 1, 1 },
+        direction = { 0, -1, -1 },
+    });
+
     while !Engine.should_quit() {
         Engine.begin_frame();
 

@@ -57,6 +57,17 @@ should_quit :: inline () -> bool {
 // Rendering
 // =============================================================================
 
+Ambient_Light     :: #type Renderer.Ambient_Light;
+Directional_Light :: #type Renderer.Directional_Light;
+
+set_ambient_light :: inline (light: Ambient_Light) {
+    Renderer.set_ambient_light(engine.renderer, light);
+}
+
+set_directional_light :: inline (light: Directional_Light) {
+    Renderer.set_directional_light(engine.renderer, light);
+}
+
 // @Todo maybe call this in begin frame?
 start_drawing :: inline (camera: Renderer.Render_Camera) {
     Renderer.start_drawing(engine.renderer, camera);

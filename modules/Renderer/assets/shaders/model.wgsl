@@ -71,6 +71,15 @@ struct MaterialParams {
     base_color_factor: vec4f,
 }
 
+struct AmbienLight {
+    color: vec3f,
+}
+
+struct DirectionalLight {
+    direction: vec3f,
+    color:     vec3f,
+};
+
 @group(1) @binding(0)
 var<uniform> u_material_params: MaterialParams;
 @group(1) @binding(1)
@@ -78,11 +87,37 @@ var base_color_texture: texture_2d<f32>;
 @group(1) @binding(2)
 var base_color_sampler: sampler;
 
+@group(2) @binding(0)
+var<uniform> u_ambient_light: AmbienLight;
+@group(2) @binding(1)
+var<uniform> u_directional_light: DirectionalLight;
+
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    return textureSample(
+    let normalized_normal = normalize(input.normal);
+
+    let unlit_color = textureSample(
         base_color_texture,
         base_color_sampler,
         input.uv,
-    ) * u_material_params.base_color_factor * input.tint;
+    )
+        * u_material_params.base_color_factor
+        * input.tint;
+
+    let albedo = unlit_color.rgb;
+    let alpha  = unlit_color.a;
+
+    var color = albedo * u_ambient_light.color;
+
+    color += calculate_directional_light(u_directional_light, albedo, normalized_normal);
+
+    return vec4f(color, alpha);
+}
+
+fn calculate_directional_light(light: DirectionalLight, albedo: vec3f, normalized_normal: vec3f) -> vec3f {
+    let light_direction = normalize(-light.direction);
+
+    let diffuse = max(dot(normalized_normal, light_direction), 0);
+
+    return light.color * diffuse * albedo;
 }

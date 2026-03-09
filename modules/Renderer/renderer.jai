@@ -10,6 +10,18 @@ Render_Camera :: struct {
     z_far:  float;
 }
 
+Ambient_Light :: struct {
+    color: Vector3 = { 0.1, 0.1, 0.1 };
+    _padding: float; // @no_merge @Todo sucks
+} @GPU
+
+Directional_Light :: struct {
+    direction: Vector3 = { 0, -1, 0 };
+    _padding:  float; // @no_merge @Todo sucks
+    color:     Vector3 = { 1, 1, 1 };
+    _padding2: float; // @no_merge @Todo sucks
+} @GPU
+
 init_renderer :: (window: Window.Window_Handle, clear_color: Vector4) -> ok: bool, Renderer_Handle {
     renderer := New(Renderer);
 
@@ -28,8 +40,13 @@ init_renderer :: (window: Window.Window_Handle, clear_color: Vector4) -> ok: boo
     renderer.material_bind_group_layout = create_material_bind_group_layout(device);
 
     renderer.transforms.bind_group_layout,
-    renderer.transforms.buffer,
-    renderer.transforms.bind_group = create_transforms_bind_group(device);
+        renderer.transforms.buffer,
+        renderer.transforms.bind_group = create_transforms_bind_group(device);
+
+    renderer.lights.bind_group_layout,
+        renderer.lights.ambient_buffer,
+        renderer.lights.directional_buffer,
+        renderer.lights.bind_group = create_light_bind_group(device);
 
     renderer.pipelines.single_sided_model = create_model_render_pipeline(
         device,
@@ -37,6 +54,7 @@ init_renderer :: (window: Window.Window_Handle, clear_color: Vector4) -> ok: boo
         .[
             renderer.transforms.bind_group_layout,
             renderer.material_bind_group_layout,
+            renderer.lights.bind_group_layout,
         ],
         cull_faces = true,
     );
@@ -46,6 +64,7 @@ init_renderer :: (window: Window.Window_Handle, clear_color: Vector4) -> ok: boo
         .[
             renderer.transforms.bind_group_layout,
             renderer.material_bind_group_layout,
+            renderer.lights.bind_group_layout,
         ],
         cull_faces = false,
     );
@@ -98,6 +117,11 @@ deinit_renderer :: (handle: Renderer_Handle) {
     WGPU.RenderPipelineRelease(renderer.pipelines.single_sided_model);
     WGPU.RenderPipelineRelease(renderer.pipelines.double_sided_model);
 
+    WGPU.BufferRelease(renderer.lights.ambient_buffer);
+    WGPU.BufferRelease(renderer.lights.directional_buffer);
+    WGPU.BindGroupLayoutRelease(renderer.lights.bind_group_layout);
+    WGPU.BindGroupRelease(renderer.lights.bind_group);
+
     WGPU.BindGroupLayoutRelease(renderer.material_bind_group_layout);
 
     WGPU.BufferRelease(renderer.transforms.buffer);
@@ -107,6 +131,18 @@ deinit_renderer :: (handle: Renderer_Handle) {
     deinit_wgpu(renderer.wgpu_toolbox);
 
     free(renderer);
+}
+
+set_ambient_light :: (handle: Renderer_Handle, light: Ambient_Light) {
+    renderer := cast(*Renderer, handle);
+
+    renderer.lights.ambient_light = light;
+}
+
+set_directional_light :: (handle: Renderer_Handle, light: Directional_Light) {
+    renderer := cast(*Renderer, handle);
+
+    renderer.lights.directional_light = light;
 }
 
 start_drawing :: (handle: Renderer_Handle, camera: Render_Camera) {
@@ -175,6 +211,8 @@ Renderer :: struct {
 
     default_base_color_texture: Texture;
     depth_texture:              Texture;
+
+    lights: Lights;
 }
 
 
@@ -216,6 +254,16 @@ Transforms :: struct {
         projection: Matrix4;
         view:       Matrix4;
     } @GPU
+}
+
+Lights :: struct {
+    ambient_light:     Ambient_Light;
+    directional_light: Directional_Light;
+
+    bind_group:               WGPU.BindGroup;
+    bind_group_layout:        WGPU.BindGroupLayout;
+    ambient_buffer:     WGPU.Buffer;
+    directional_buffer: WGPU.Buffer;
 }
 
 schedule_node_for_drawing :: (renderer: *Renderer, node: Node, model: Model, parent_transform: Matrix4, tint: Vector4) {
@@ -296,6 +344,10 @@ do_main_pass :: (
     defer WGPU.RenderPassEncoderRelease(render_pass_encoder);
 
     WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, renderer.transforms.bind_group, 0, null);
+    WGPU.RenderPassEncoderSetBindGroup(render_pass_encoder, 2, renderer.lights.bind_group, 0, null);
+
+    WGPU.QueueWriteBuffer(queue, renderer.lights.ambient_buffer, 0, *renderer.lights.ambient_light, size_of(Ambient_Light));
+    WGPU.QueueWriteBuffer(queue, renderer.lights.directional_buffer, 0, *renderer.lights.directional_light, size_of(Directional_Light));
 
     for *batch: renderer.batches {
         if batch.instances.count == 0 {
@@ -527,6 +579,89 @@ create_material_bind_group :: (renderer: *Renderer, material: Material, bind_gro
     }
 
     return buffer, bind_group;
+}
+
+create_light_bind_group :: (device: WGPU.Device) -> WGPU.BindGroupLayout, ambient: WGPU.Buffer, directional: WGPU.Buffer, WGPU.BindGroup {
+    bind_group_layout: WGPU.BindGroupLayout;
+    {
+        entries := WGPU.BindGroupLayoutEntry.[
+            { // Ambient light
+                binding    = 0,
+                visibility = WGPU.WGPUShaderStage_Fragment,
+                buffer     = WGPU.BufferBindingLayout.{
+                    type = .Uniform,
+                    hasDynamicOffset = xx false,
+                    minBindingSize   = size_of(Ambient_Light),
+                },
+            },
+            { // Directional light
+                binding = 1,
+                visibility = WGPU.WGPUShaderStage_Fragment,
+                buffer = WGPU.BufferBindingLayout.{
+                    type = .Uniform,
+                    hasDynamicOffset = xx false,
+                    minBindingSize   = size_of(Directional_Light),
+                },
+            }
+        ];
+
+        descriptor: WGPU.BindGroupLayoutDescriptor = {
+            label = WGPU.to_string_view("Light Bind Group Layout"),
+            entryCount = entries.count,
+            entries    = entries.data,
+        };
+
+        bind_group_layout = WGPU.DeviceCreateBindGroupLayout(device, *descriptor);
+    }
+
+    ambient_buffer: WGPU.Buffer;
+    {
+        buffer_descriptor: WGPU.BufferDescriptor = {
+            usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
+            size  = WGPU.to_copy_buffer_alignment(size_of(Ambient_Light)),
+        };
+
+        ambient_buffer = WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
+    }
+
+    directional_buffer: WGPU.Buffer;
+    {
+        buffer_descriptor: WGPU.BufferDescriptor = {
+            usage = WGPU.WGPUBufferUsage_CopyDst | WGPU.WGPUBufferUsage_Uniform,
+            size  = WGPU.to_copy_buffer_alignment(size_of(Directional_Light)),
+        };
+
+        directional_buffer = WGPU.DeviceCreateBuffer(device, *buffer_descriptor);
+    }
+
+    bind_group: WGPU.BindGroup;
+    {
+        entries := WGPU.BindGroupEntry.[
+            {
+                binding = 0,
+                buffer  = ambient_buffer,
+                offset  = 0,
+                size    = size_of(Ambient_Light),
+            },
+            {
+                binding = 1,
+                buffer  = directional_buffer,
+                offset  = 0,
+                size    = size_of(Directional_Light),
+            },
+        ];
+
+        descriptor: WGPU.BindGroupDescriptor = {
+            label  = WGPU.to_string_view("Light Bind Group"),
+            layout = bind_group_layout,
+            entryCount = entries.count,
+            entries    = entries.data,
+        };
+
+        bind_group = WGPU.DeviceCreateBindGroup(device, *descriptor);
+    }
+
+    return bind_group_layout, ambient_buffer, directional_buffer, bind_group;
 }
 
 create_model_render_pipeline :: (
