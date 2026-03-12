@@ -8,6 +8,7 @@
 #import "Math";
 Engine :: #import "Engine"()(DEBUG = DEBUG);
 
+#load "entity.jai";
 #load "fly_camera.jai";
 
 main :: () {
@@ -29,14 +30,42 @@ main :: () {
         },
     };
 
-    ok =, lantern_handle := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
-    assert(ok);
-    ok =, mccree_handle := Engine.get_model_handle("modules/GLTF/assets/mccree/scene.gltf");
-    assert(ok);
-    ok =, mech_handle := Engine.get_model_handle("modules/GLTF/assets/mech/mech.gltf");
-    assert(ok);
-    ok =, cube_handle := Engine.get_model_handle("assets/models/cube/cube.gltf");
-    assert(ok);
+    entities: [..]Entity;
+    defer array_free(entities);
+
+    _, lantern_model := Engine.get_model_handle("modules/GLTF/assets/lantern/lantern.gltf");
+    array_add(*entities, Entity.{
+        scale = { 0.2, 0.2, 0.2 },
+        model = lantern_model,
+    });
+
+    _, mech_model := Engine.get_model_handle("modules/GLTF/assets/mech/mech.gltf");
+    array_add(*entities, Entity.{
+        position = { 1, 0, 1 },
+        tint = { 0.7, 0.7, 0, 1 },
+        model = mech_model,
+    });
+
+    _, mccree_model := Engine.get_model_handle("modules/GLTF/assets/mccree/scene.gltf");
+    array_add(*entities, Entity.{
+        position = { -5, 0, 5 },
+        model = mccree_model,
+    });
+
+    GRID_SIZE :: 10;
+    HALF_GRID_SIZE :: 10 / 2;
+    _, cube_model := Engine.get_model_handle("assets/models/cube/cube.gltf");
+    for x: -HALF_GRID_SIZE..HALF_GRID_SIZE {
+        for y: -HALF_GRID_SIZE..HALF_GRID_SIZE {
+            array_add(
+                *entities,
+                {
+                    model = cube_model,
+                    position = { xx x, -0.5, xx y },
+                },
+            );
+        }
+    }
 
     Engine.set_ambient_light({ color = { 0.01, 0.01, 0.1 }});
     Engine.set_directional_light({
@@ -58,17 +87,12 @@ main :: () {
             z_far  = 1000,
         });
 
-        Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.2, 0.2, 0.2 }), { 1, 1, 1, 1 });
-        Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 1, 1, 1 }), { 1, 1, 1, 1 });
-        Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({ 1, 0, 1 }), { 0.8, 0.8, 0, 1 });
-        for x: -5..5 {
-            for y: -5..5 {
-                Engine.draw_model(
-                    Engine.resolve_model_handle(cube_handle),
-                    make_translation_matrix4({ xx x, -0.5, xx y }),
-                    { 1, 1, 1, 1 },
-                );
-            }
+        for entity: entities {
+            Engine.draw_model(
+                Engine.resolve_model_handle(entity.model),
+                get_model_transform(entity),
+                entity.tint,
+            );
         }
 
         Engine.end_drawing();
