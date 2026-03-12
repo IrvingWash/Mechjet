@@ -35,11 +35,13 @@ main :: () {
     assert(ok);
     ok =, mech_handle := Engine.get_model_handle("modules/GLTF/assets/mech/mech.gltf");
     assert(ok);
+    ok =, cube_handle := Engine.get_model_handle("assets/models/cube/cube.gltf");
+    assert(ok);
 
-    Engine.set_ambient_light({ color = { 0.01, 0.01, 0.01 }});
+    Engine.set_ambient_light({ color = { 0.01, 0.01, 0.1 }});
     Engine.set_directional_light({
         color = { 0.1, 0.1, 0.5 },
-        direction = { 0, -1, -1 },
+        direction = { -1, -1, -1 },
     });
 
     while !Engine.should_quit() {
@@ -59,6 +61,15 @@ main :: () {
         Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.2, 0.2, 0.2 }), { 1, 1, 1, 1 });
         Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 1, 1, 1 }), { 1, 1, 1, 1 });
         Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({ 1, 0, 1 }), { 1, 1, 1, 1 });
+        for x: -5..5 {
+            for y: -5..5 {
+                Engine.draw_model(
+                    Engine.resolve_model_handle(cube_handle),
+                    make_translation_matrix4({ xx x, -0.5, xx y }),
+                    { 1, 1, 1, 1 },
+                );
+            }
+        }
 
         Engine.end_drawing();
 
