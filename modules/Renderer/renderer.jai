@@ -12,14 +12,14 @@ Render_Camera :: struct {
 
 Ambient_Light :: struct {
     color: Vector3 = { 0.1, 0.1, 0.1 };
-    _padding: float; // @no_merge @Todo sucks
+    _padding: float;
 } @GPU
 
 Directional_Light :: struct {
     direction: Vector3 = { 0, -1, 0 };
-    _padding:  float; // @no_merge @Todo sucks
+    _padding:  float;
     color:     Vector3 = { 1, 1, 1 };
-    _padding2: float; // @no_merge @Todo sucks
+    _padding2: float;
 } @GPU
 
 init_renderer :: (window: Window.Window_Handle, clear_color: Vector4) -> ok: bool, Renderer_Handle {
@@ -540,7 +540,7 @@ create_material_bind_group :: (renderer: *Renderer, material: Material, bind_gro
             queue,
             buffer,
             0,
-            *material.params.base_color_factor,
+            *material.params,
             size_of(Material.Params),
         );
     }
