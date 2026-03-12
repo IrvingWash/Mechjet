@@ -71,7 +71,7 @@ struct MaterialParams {
     base_color_factor: vec4f,
 }
 
-struct AmbienLight {
+struct AmbientLight {
     color: vec3f,
 }
 
@@ -88,7 +88,7 @@ var base_color_texture: texture_2d<f32>;
 var base_color_sampler: sampler;
 
 @group(2) @binding(0)
-var<uniform> u_ambient_light: AmbienLight;
+var<uniform> u_ambient_light: AmbientLight;
 @group(2) @binding(1)
 var<uniform> u_directional_light: DirectionalLight;
 
