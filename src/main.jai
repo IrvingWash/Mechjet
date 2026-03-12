@@ -60,7 +60,7 @@ main :: () {
 
         Engine.draw_model(Engine.resolve_model_handle(lantern_handle), make_scale_matrix4({ 0.2, 0.2, 0.2 }), { 1, 1, 1, 1 });
         Engine.draw_model(Engine.resolve_model_handle(mccree_handle), make_translation_matrix4({ -5, 0, 5 }) * make_scale_matrix4({ 1, 1, 1 }), { 1, 1, 1, 1 });
-        Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({ 1, 0, 1 }), { 1, 1, 1, 1 });
+        Engine.draw_model(Engine.resolve_model_handle(mech_handle), make_translation_matrix4({ 1, 0, 1 }), { 0.8, 0.8, 0, 1 });
         for x: -5..5 {
             for y: -5..5 {
                 Engine.draw_model(
