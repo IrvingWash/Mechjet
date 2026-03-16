@@ -90,7 +90,7 @@ main :: () {
         for entity: entities {
             Engine.draw_model(
                 Engine.resolve_model_handle(entity.model),
-                get_model_transform(entity),
+                get_entity_transform(entity),
                 entity.tint,
             );
         }
