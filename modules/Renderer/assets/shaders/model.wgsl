@@ -80,6 +80,13 @@ struct DirectionalLight {
     color:     vec3f,
 };
 
+struct PointLight {
+    position:     vec3f,
+    inner_radius: f32,
+    color:        vec3f,
+    outer_radius: f32,
+}
+
 @group(1) @binding(0)
 var<uniform> u_material_params: MaterialParams;
 @group(1) @binding(1)
@@ -91,6 +98,10 @@ var base_color_sampler: sampler;
 var<uniform> u_ambient_light: AmbientLight;
 @group(2) @binding(1)
 var<uniform> u_directional_light: DirectionalLight;
+@group(2) @binding(2)
+var<uniform> u_point_light_count: u32;
+@group(2) @binding(3)
+var<uniform> u_point_lights: array<PointLight, 64>;
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
